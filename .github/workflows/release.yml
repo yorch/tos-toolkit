@@ -12,7 +12,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4  # pin to a SHA before relying on release integrity
+      - uses: actions/checkout@v7  # pin to a SHA before relying on release integrity
         with:
           fetch-depth: 0
       - uses: actions/setup-python@v5
