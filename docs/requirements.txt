@@ -1,2 +1,2 @@
 # Site build only. The package itself has zero runtime dependencies.
-mkdocs-material>=9.5,<10
+mkdocs-material>=9.7.7,<10
