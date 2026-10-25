@@ -1,0 +1,30 @@
+{
+  "_comment": "Namespace members for enum-like constants. Case-insensitive. Anything not listed is reported when used as a member of a known namespace.",
+  "constants": {
+    "Color": [
+      "BLACK", "BLUE", "CURRENT", "CYAN", "DARK_GRAY", "DARK_GREEN",
+      "DARK_ORANGE", "DARK_RED", "DOWNTICK", "GRAY", "GREEN", "LIGHT_GRAY",
+      "LIGHT_GREEN", "LIGHT_ORANGE", "LIGHT_RED", "MAGENTA", "ORANGE", "PINK",
+      "PLUM", "RED", "UPTICK", "VIOLET", "WHITE", "YELLOW"
+    ],
+    "PriceType": ["ASK", "BID", "LAST", "MARK"],
+    "AggregationPeriod": [
+      "DAY", "FIVE_MIN", "FOUR_HOURS", "FIFTEEN_MIN", "HOUR", "MIN", "MONTH",
+      "OPT_EXP", "THIRTY_MIN", "WEEK"
+    ],
+    "OrderType": [
+      "BUY_AUTO", "BUY_TO_CLOSE", "BUY_TO_OPEN", "SELL_AUTO", "SELL_TO_CLOSE",
+      "SELL_TO_OPEN"
+    ],
+    "AverageType": ["EXPONENTIAL", "HULL", "SIMPLE", "WEIGHTED", "WILDERS"],
+    "Curve": ["FIRM", "LONG_DASH", "POINTS", "SHORT_DASH"],
+    "PaintingStrategy": [
+      "ARROW_DOWN", "ARROW_UP", "BOOLEAN_ARROW_DOWN", "BOOLEAN_ARROW_UP",
+      "BOOLEAN_POINTS", "BOOLEAN_WEDGE_DOWN", "BOOLEAN_WEDGE_UP", "CROSS",
+      "HISTOGRAM", "LINE", "LINE_VS_PREV", "NUMBER", "SQUARED_HISTOGRAM",
+      "VALUES_ABOVE", "VALUES_BELOW"
+    ],
+    "Alert": ["BAR", "ONCE", "ONCE_PER_BAR", "TICK"],
+    "Sound": ["BELL", "CHIMES", "DING", "NO_SOUND", "RING"]
+  }
+}

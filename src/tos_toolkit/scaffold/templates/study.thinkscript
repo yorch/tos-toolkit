@@ -1,0 +1,49 @@
+# @name: __NAME__
+# @kind: study
+# @panel: upper
+# @assets: stock, future, crypto
+# @timeframes: intraday, daily
+# @version: 0.1.0
+# @status: draft
+# @inputs: fastLength=8, slowLength=21, showCloud=yes, showLabels=yes
+# @repaints: no
+# @notes: Template study. Two averages with prior-bar readiness gating, a gated cloud, a flip label.
+
+declare upper;
+
+input fastLength = 8;
+input slowLength = 21;
+input showCloud  = yes;
+input showLabels = yes;
+
+# --- core ---------------------------------------------------------------
+def fast = ExpAverage(close, fastLength);
+def slow = ExpAverage(close, slowLength);
+
+# Readiness must gate BOTH the current-bar comparison and the prior-bar one.
+# Comparing NaN is silently false, so an ungated cross test never fires.
+def isReady  = !IsNaN(fast) and !IsNaN(slow);
+def wasReady = !IsNaN(fast[1]) and !IsNaN(slow[1]);
+
+def isBull      = isReady and fast > slow;
+def priorIsBull = wasReady and fast[1] > slow[1];
+def crossedUp   = isReady and wasReady and isBull and !priorIsBull;
+
+# --- plots --------------------------------------------------------------
+plot FastLine = fast;
+FastLine.SetDefaultColor(Color.GREEN);
+FastLine.SetLineWeight(2);
+
+plot SlowLine = slow;
+SlowLine.SetDefaultColor(Color.RED);
+SlowLine.SetLineWeight(2);
+
+# --- drawing ------------------------------------------------------------
+# NaN in a supplied series is the standard way to switch a drawing off.
+# TODO(verify): confirm Double.NaN suppresses AddCloud on this platform version.
+AddCloud(if showCloud then fast else Double.NaN,
+         if showCloud then slow else Double.NaN,
+         Color.GREEN, Color.RED);
+
+AddLabel(showCloud, "cloud: " + if isBull then "bull" else "bear", Color.GRAY);
+AddLabel(showLabels and crossedUp, "FLIP UP", Color.YELLOW);

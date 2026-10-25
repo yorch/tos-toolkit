@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.ruff_cache/
+.pytest_cache/
+build/
+dist/
+*.egg-info/
+
+# Compiled Java bridge
+src/tos_toolkit/parser/java/.classes/
+
+# Local scratch
+.review/
+tmp/
+.DS_Store

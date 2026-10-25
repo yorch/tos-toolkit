@@ -1,0 +1,30 @@
+# @name: __NAME__
+# @kind: scan
+# @panel: none
+# @assets: stock, future, crypto
+# @timeframes: daily
+# @version: 0.1.0
+# @status: draft
+# @inputs: fastLength=8, slowLength=21
+# @repaints: no
+# @notes: Template scan. Ends in a boolean plot; chart-only functions are unavailable here.
+
+input fastLength = 8;
+input slowLength = 21;
+
+# --- core ---------------------------------------------------------------
+def fast = ExpAverage(close, fastLength);
+def slow = ExpAverage(close, slowLength);
+
+# Ready only counts when both the current and prior bar have values, otherwise
+# the "previous bar" comparison is NaN and reads as false.
+def isReady    = !IsNaN(fast) and !IsNaN(slow);
+def wasReady   = !IsNaN(fast[1]) and !IsNaN(slow[1]);
+def isBull     = isReady and fast > slow;
+def priorBull  = wasReady and fast[1] > slow[1];
+
+def crossedUp = isReady and wasReady and isBull and !priorBull;
+
+# --- filter -------------------------------------------------------------
+# The scanner returns every symbol for which Scan is true (non-zero).
+plot Scan = crossedUp;

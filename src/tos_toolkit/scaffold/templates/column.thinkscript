@@ -1,0 +1,44 @@
+# @name: __NAME__
+# @kind: column
+# @panel: none
+# @assets: stock, future, crypto
+# @timeframes: daily
+# @version: 0.1.0
+# @status: draft
+# @inputs: length=14, hotLevel=70
+# @repaints: no
+# @notes: Template column. Wilder-style RSI with explicit zero-loss handling; background triages.
+
+input length   = 14;
+input hotLevel = 70;
+
+# --- core ---------------------------------------------------------------
+def netChange = close - close[1];
+def gain      = if IsNaN(netChange) then 0 else if netChange > 0 then netChange else 0;
+def loss      = if IsNaN(netChange) then 0 else if netChange < 0 then -netChange else 0;
+
+def avgGain = ExpAverage(gain, length);
+def avgLoss = ExpAverage(loss, length);
+
+# Scrub the divisor so the arithmetic never sees zero. This is separate from the
+# ECONOMIC meaning of a zero average loss, which is handled below.
+def lossSafe = if IsNaN(avgLoss) or avgLoss == 0 then 1 else avgLoss;
+def rs       = avgGain / lossSafe;
+def rsiCalc  = 100 - 100 / (1 + rs);
+
+# Zero average loss on a window with gains is RSI 100, not a tiny-epsilon value.
+# A flat window is conventionally 50.
+def rsiValue =
+    if IsNaN(avgGain) or IsNaN(avgLoss) then 50
+    else if avgGain == 0 and avgLoss == 0 then 50
+    else if avgLoss == 0 then 100
+    else rsiCalc;
+
+# --- value --------------------------------------------------------------
+plot Value = rsiValue;
+Value.SetDefaultColor(Color.WHITE);
+
+AssignBackgroundColor(
+    if rsiValue >= hotLevel then Color.RED
+    else if rsiValue <= 100 - hotLevel then Color.GREEN
+    else Color.GRAY);

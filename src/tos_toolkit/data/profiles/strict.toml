@@ -1,0 +1,16 @@
+# Strict profile: house conventions for a ThinkScript trading repo.
+# Requires the header block, artifact directories, and @status lifecycle.
+[header]
+mode = "required"
+required = ["name", "kind", "panel", "assets", "timeframes", "version", "status"]
+optional = ["inputs", "repaints", "notes", "superseded-by", "requires"]
+statuses = ["draft", "validated", "in-use", "deprecated"]
+assets = ["stock", "option", "future", "crypto", "index"]
+timeframes = ["intraday", "daily", "weekly", "monthly"]
+panels = ["upper", "lower", "none"]
+
+[project]
+targets = ["studies", "scans", "strategies", "columns", "templates"]
+
+[checks]
+unknown_functions = "warn"

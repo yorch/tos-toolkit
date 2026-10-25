@@ -1,0 +1,138 @@
+"""Platform rules for scans, columns, and strategies.
+
+These are Schwab's rules, not ours — a scan genuinely cannot call ``AddLabel``.
+Always on, regardless of profile.
+"""
+
+from __future__ import annotations
+
+from ..diagnostics import Finding
+from ..lexer import Kind
+from .language import CHART_ONLY
+
+# In watchlist columns, these two are supported; the rest are not.
+COLUMN_ALLOWED = {"AddLabel", "AssignBackgroundColor"}
+
+
+def check(ctx) -> list[Finding]:
+    kind = ctx.header.get("kind", "").strip().lower()
+    if not kind:
+        return []
+    out: list[Finding] = []
+    if kind == "scan":
+        out.extend(_scan(ctx))
+    elif kind == "column":
+        out.extend(_column(ctx))
+    elif kind == "strategy":
+        out.extend(_strategy(ctx))
+    return [item for item in out if item is not None]
+
+
+def _calls(ctx) -> list[tuple[str, int]]:
+    found: list[tuple[str, int]] = []
+    for statement in ctx.statements:
+        tokens = statement.tokens
+        for index, token in enumerate(tokens[:-1]):
+            if token.kind is not Kind.IDENT:
+                continue
+            if tokens[index + 1].kind is not Kind.LPAREN:
+                continue
+            if index > 0 and tokens[index - 1].kind is Kind.OP and tokens[index - 1].value == ".":
+                continue
+            found.append((token.value, token.line))
+    return found
+
+
+def _declares_panel(ctx) -> list[int]:
+    lines = []
+    for index, line in enumerate(ctx.masked_lines(), start=1):
+        stripped = line.strip().lower()
+        if stripped.startswith("declare ") and (
+            "upper" in stripped or "lower" in stripped
+        ):
+            lines.append(index)
+    return lines
+
+
+def _scan(ctx) -> list[Finding]:
+    out: list[Finding] = []
+    for name, line in _calls(ctx):
+        if name in CHART_ONLY:
+            out.append(
+                ctx.finding(
+                    "E401",
+                    line,
+                    f"'{name}' is unavailable in a scan",
+                    hint="Scans have no panel. Remove the drawing call.",
+                )
+            )
+    for line in _declares_panel(ctx):
+        out.append(
+            ctx.finding("E405", line, "a scan has no panel; remove 'declare upper/lower'")
+        )
+
+    terminated = [s for s in ctx.statements if s.tokens]
+    if not terminated:
+        return [item for item in out if item is not None]
+    last = terminated[-1]
+    if last.keyword != "plot":
+        out.append(
+            ctx.finding(
+                "E403",
+                last.start_line,
+                "a scan must end with a boolean 'plot'",
+                hint="The scanner returns every symbol where that plot is true.",
+            )
+        )
+    else:
+        values = [t.value for t in last.tokens if t.kind is not Kind.SEMI]
+        rhs = values[values.index("=") + 1 :] if "=" in values else []
+        if len(rhs) == 1 and rhs[0].lower() in {"1", "yes", "true"}:
+            out.append(
+                ctx.finding(
+                    "W402", last.start_line, "scan plot is a constant; every symbol matches"
+                )
+            )
+    return [item for item in out if item is not None]
+
+
+def _column(ctx) -> list[Finding]:
+    out: list[Finding] = []
+    for name, line in _calls(ctx):
+        if name in CHART_ONLY and name not in COLUMN_ALLOWED:
+            out.append(
+                ctx.finding(
+                    "E402", line, f"'{name}' is unavailable in a watchlist column"
+                )
+            )
+    for line in _declares_panel(ctx):
+        out.append(
+            ctx.finding(
+                "E405", line, "a watchlist column has no panel; remove 'declare upper/lower'"
+            )
+        )
+    plots = [s for s in ctx.statements if s.keyword == "plot"]
+    if not plots:
+        out.append(ctx.finding("E404", ctx.first_code_line or 1, "a column needs exactly one 'plot'"))
+    elif len(plots) > 1:
+        out.append(
+            ctx.finding(
+                "E404",
+                plots[1].start_line,
+                f"column has {len(plots)} plots; only the value is displayed",
+            )
+        )
+    return [item for item in out if item is not None]
+
+
+def _strategy(ctx) -> list[Finding]:
+    out: list[Finding] = []
+    if not any(name == "AddOrder" for name, _ in _calls(ctx)):
+        out.append(
+            ctx.finding(
+                "W401",
+                ctx.first_code_line or 1,
+                "strategy has no AddOrder(); it will not produce a backtest",
+            )
+        )
+    return [item for item in out if item is not None]

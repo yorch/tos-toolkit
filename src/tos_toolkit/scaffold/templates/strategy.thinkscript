@@ -1,0 +1,46 @@
+# @name: __NAME__
+# @kind: strategy
+# @panel: upper
+# @assets: stock, future
+# @timeframes: daily
+# @version: 0.1.0
+# @status: draft
+# @inputs: fastLength=8, slowLength=21, qty=1
+# @repaints: no
+# @notes: Template strategy. Enter long on an up-cross, exit on the down-cross.
+
+declare upper;
+
+input fastLength = 8;
+input slowLength = 21;
+input qty        = 1;
+
+# --- core ---------------------------------------------------------------
+def fast = ExpAverage(close, fastLength);
+def slow = ExpAverage(close, slowLength);
+
+def isReady  = !IsNaN(fast) and !IsNaN(slow);
+def wasReady = !IsNaN(fast[1]) and !IsNaN(slow[1]);
+
+def isBull      = isReady and fast > slow;
+def priorIsBull = wasReady and fast[1] > slow[1];
+
+def crossedUp   = isReady and wasReady and isBull and !priorIsBull;
+def crossedDown = isReady and wasReady and !isBull and priorIsBull;
+
+# --- plots --------------------------------------------------------------
+plot FastLine = fast;
+FastLine.SetDefaultColor(Color.GREEN);
+
+plot SlowLine = slow;
+SlowLine.SetDefaultColor(Color.RED);
+
+# --- orders -------------------------------------------------------------
+# Signature: AddOrder(orderType, condition, price, tradeSize, tickColor, arrowColor, name)
+# `open[-1]` is the next bar's open — the standard next-bar fill for a signal
+# generated on the current bar's close.
+AddOrder(OrderType.BUY_TO_OPEN, crossedUp, open[-1], qty, Color.GREEN, Color.GREEN, "long");
+AddOrder(OrderType.SELL_TO_CLOSE, crossedDown, open[-1], qty, Color.RED, Color.RED, "flat");
+
+# TODO(verify): confirm how the platform's backtest handles the final bar, where
+# the next bar does not exist and open[-1] is undefined.

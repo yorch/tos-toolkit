@@ -1,0 +1,11 @@
+# Loose profile: language-generic rules only.
+# No header block, no directory layout, no @status lifecycle. Use this to point
+# the toolkit at a ThinkScript corpus that was never written to our conventions.
+[header]
+mode = "off"
+
+[project]
+targets = []
+
+[checks]
+unknown_functions = "off"
