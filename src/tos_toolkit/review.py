@@ -20,15 +20,52 @@ import sys
 from pathlib import Path
 
 PROMPT_FILE = Path(__file__).resolve().parent / "prompts" / "adversarial-review.md"
-VERDICT_RE = re.compile(r"VERDICT:\s*(BLOCK|WARN|PASS)", re.IGNORECASE)
-MAX_INLINE_BYTES = 400_000
+VERDICT_RE = re.compile(r"VERDICT:\s*(BLOCK|WARN|PASS)", re.IGNORECASE | re.ASCII)
+MAX_INLINE_CHARS = 400_000
+_SKIP_DIRS = {
+    ".git",
+    ".venv",
+    "venv",
+    "node_modules",
+    "site-packages",
+    "__pycache__",
+    "build",
+    "dist",
+    ".review",
+}
+
+
+class ReviewUnavailable(Exception):
+    """Raised when the review scope cannot be established."""
 
 
 def _git(root: Path, *args: str) -> str:
-    result = subprocess.run(
-        ["git", "-C", str(root), *args], capture_output=True, text=True, timeout=60
-    )
-    return result.stdout if result.returncode == 0 else ""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(root), *args], capture_output=True, text=True, timeout=60
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise ReviewUnavailable(f"git failed: {exc}") from exc
+    if result.returncode != 0:
+        raise ReviewUnavailable(result.stderr.strip() or f"git {args[0]} failed")
+    return result.stdout
+
+
+def _has_head(root: Path) -> bool:
+    """True when the repo has at least one commit. Never raises."""
+    try:
+        _git(root, "rev-parse", "--verify", "HEAD")
+    except ReviewUnavailable:
+        return False
+    return True
+
+
+def _is_repo(root: Path) -> bool:
+    try:
+        _git(root, "rev-parse", "--git-dir")
+    except ReviewUnavailable:
+        return False
+    return True
 
 
 def _inlined_files(root: Path, files: list[Path]) -> str:
@@ -40,7 +77,7 @@ def _inlined_files(root: Path, files: list[Path]) -> str:
         except (UnicodeDecodeError, OSError):
             chunks.append(f"--- {path.name} (unreadable) ---\n")
             continue
-        if total + len(body) > MAX_INLINE_BYTES:
+        if total + len(body) > MAX_INLINE_CHARS:
             chunks.append(f"--- {path.name} (skipped, size budget) ---\n")
             continue
         total += len(body)
@@ -61,21 +98,35 @@ def _scope(root: Path, mode: str, paths: list[str]) -> str:
 
     if mode == "files":
         if not paths:
-            return ""
-        selected = []
+            raise ReviewUnavailable("--mode files needs at least one path")
+        selected: list[Path] = []
         for raw in paths:
             candidate = Path(raw)
             if not candidate.is_absolute():
                 candidate = root / raw
-            selected.append(candidate)
+            if candidate.is_dir():
+                for pattern in ("*.thinkscript", "*.py"):
+                    for found in sorted(candidate.rglob(pattern)):
+                        if _SKIP_DIRS & set(found.parts):
+                            continue
+                        selected.append(found)
+            elif candidate.is_file():
+                selected.append(candidate)
+            else:
+                raise ReviewUnavailable(f"path not found: {raw}")
+        if not selected:
+            raise ReviewUnavailable("no reviewable files matched")
         return "### files under review\n\n" + _inlined_files(root, selected)
+
+    if not _is_repo(root):
+        raise ReviewUnavailable(f"{root} is not a git repository")
 
     status = _git(root, "status", "--porcelain")
     if not status.strip():
         return ""
 
     parts = ["### git status\n", status]
-    if _git(root, "rev-parse", "--verify", "HEAD").strip():
+    if _has_head(root):
         parts += ["\n### git diff (unstaged)\n", _git(root, "diff")]
     parts += ["\n### git diff (staged)\n", _git(root, "diff", "--cached")]
 
@@ -96,7 +147,20 @@ def _compose(root: Path, mode: str, scope: str) -> str:
 
 
 def _invoke(config, prompt: str) -> tuple[int, str, str]:
-    """Return (exit code, stdout, stderr) from the configured harness."""
+    """Return (exit code, stdout, stderr) from the configured harness.
+
+    Never raises: a hung or missing harness must map to exit 2, not a traceback
+    (which the shell would read as exit 1 = BLOCK).
+    """
+    try:
+        return _invoke_inner(config, prompt)
+    except subprocess.TimeoutExpired:
+        return 2, "", "review harness timed out"
+    except OSError as exc:
+        return 2, "", f"could not run review harness: {exc}"
+
+
+def _invoke_inner(config, prompt: str) -> tuple[int, str, str]:
     harness = config.review_harness
     if harness == "codex":
         binary = shutil.which("codex")
@@ -149,7 +213,11 @@ def _invoke(config, prompt: str) -> tuple[int, str, str]:
 
 def run(config, mode: str = "diff", paths: list[str] | None = None) -> int:
     root = config.root
-    scope = _scope(root, mode, paths or [])
+    try:
+        scope = _scope(root, mode, paths or [])
+    except ReviewUnavailable as exc:
+        print(f"review: {exc}", file=sys.stderr)
+        return 2
     if not scope.strip():
         print("review: nothing in scope — nothing to review.", file=sys.stderr)
         return 0
@@ -175,9 +243,16 @@ def run(config, mode: str = "diff", paths: list[str] | None = None) -> int:
     (out_dir / "last.md").write_text(report, encoding="utf-8")
     print(report)
 
-    # Verdict must be on the first non-empty line: stray text must not decide a gate.
-    first = next((line for line in report.splitlines() if line.strip()), "")
-    match = VERDICT_RE.search(first)
+    # Verdict must be on the first non-empty line, allowing a leading code fence.
+    # Stray text must not decide a gate.
+    first = ""
+    for line in report.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("```"):
+            continue
+        first = stripped
+        break
+    match = VERDICT_RE.fullmatch(first)
     if match is None:
         print(
             "review: no parseable VERDICT on the first line — treat as untrustworthy.",

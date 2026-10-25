@@ -292,10 +292,20 @@ def test_rec_self_reference_depth_warns(tmp_path):
     assert "W091" in codes(_findings(tmp_path, text, profile="loose"))
 
 
-def test_rec_multiple_self_references_warn(tmp_path):
+def test_one_reference_per_branch_is_not_flagged(tmp_path):
+    """`if c then x[1] + 1 else x[1]` is the ordinary rec form."""
     text = (
         "declare upper;\n"
         "rec x = if BarNumber() == 1 then 1 else Max(x[1], x[1]);\n"
+        "plot X = x;\n"
+    )
+    assert "W090" not in codes(_findings(tmp_path, text, profile="loose"))
+
+
+def test_three_self_references_warn(tmp_path):
+    text = (
+        "declare upper;\n"
+        "rec x = if BarNumber() == 1 then 1 else Max(x[1], Max(x[1], x[1]));\n"
         "plot X = x;\n"
     )
     assert "W090" in codes(_findings(tmp_path, text, profile="loose"))
@@ -313,3 +323,75 @@ def test_stray_ts_extension_detected(tmp_path):
     files, stray = _walk([str(tmp_path / "studies")], Path(tmp_path))
     assert not files
     assert [p.name for p in stray] == ["bad.ts"]
+
+
+# --------------------------------------------------------------------------
+# regressions found by adversarial review
+
+
+def test_statement_after_script_block_is_parsed_separately(tmp_path):
+    """A `script {}` block has no trailing ';' — the next statement must not merge."""
+    text = (
+        "declare upper;\n"
+        "script scaled { input a = 0; plot out = a * 2; }\n"
+        "def foo = scaled(close);\n"
+        "plot Foo = foo;\n"
+    )
+    findings = _findings(tmp_path, text, profile="loose")
+    assert "E071" in codes(findings), codes(findings)
+
+
+def test_single_self_reference_does_not_warn(tmp_path):
+    text = (
+        "declare upper;\n"
+        "rec x = if BarNumber() == 1 then 1 else x[1] + 1;\n"
+        "plot X = x;\n"
+    )
+    assert "W090" not in codes(_findings(tmp_path, text, profile="loose"))
+
+
+def test_keywords_are_not_unknown_functions(tmp_path):
+    text = (
+        "declare upper;\n"
+        "def x = fold i = 0 to 3 with acc = 0 do acc + i;\n"
+        "plot X = x;\n"
+    )
+    assert "E072" not in codes(_findings(tmp_path, text, profile="loose"))
+
+
+def test_missing_explicit_path_is_an_error(tmp_path, monkeypatch):
+    from tos_toolkit.cli import main
+
+    monkeypatch.chdir(tmp_path)
+    try:
+        code = main(["--profile", "loose", "lint", "nope.thinkscript"])
+    except SystemExit as exc:  # strict_paths raises
+        code = exc.code
+    assert code != 0
+
+
+def test_def_def_case_pair_is_flagged(tmp_path):
+    text = "declare upper;\ndef pdHigh = 1;\ndef PdHigh = 2;\nplot Y = pdHigh;\n"
+    findings = _findings(tmp_path, text, profile="loose")
+    assert "E070" in codes(findings), codes(findings)
+
+
+def test_input_def_case_pair_is_flagged(tmp_path):
+    text = "declare upper;\ninput Length = 14;\ndef length = 2;\nplot Y = length;\n"
+    findings = _findings(tmp_path, text, profile="loose")
+    assert "E070" in codes(findings), codes(findings)
+
+
+def test_plot_def_pair_is_e071_only(tmp_path):
+    text = "declare upper;\ndef pdHigh = 1;\nplot PdHigh = pdHigh;\n"
+    found = codes(_findings(tmp_path, text, profile="loose"))
+    assert "E071" in found
+    assert "E070" not in found
+
+
+def test_if_else_brace_chain_is_not_split_into_else_statements(tmp_path):
+    from tos_toolkit.lexer import split_statements, tokenize
+
+    text = "def x = 1;\nif c { def a = 1; } else { def b = 2; }\nplot Y = x;\n"
+    statements = split_statements(tokenize(text))
+    assert all(s.keyword != "else" for s in statements)

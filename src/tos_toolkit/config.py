@@ -126,9 +126,14 @@ def load(config_path: Path | None = None, profile: str | None = None) -> Config:
     root = Path.cwd()
 
     if path is not None:
+        if not path.is_file():
+            raise ConfigError(f"config not found: {path}")
         root = path.parent
-        with path.open("rb") as handle:
-            data = tomllib.load(handle)
+        try:
+            with path.open("rb") as handle:
+                data = tomllib.load(handle)
+        except tomllib.TOMLDecodeError as exc:
+            raise ConfigError(f"invalid TOML in {path}: {exc}") from exc
 
     profile_name = profile or data.get("profile", {}).get("name", "strict")
     profile_data = load_profile(profile_name)

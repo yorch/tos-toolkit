@@ -71,3 +71,15 @@ def test_parser_path_configurable(tmp_path, monkeypatch):
 def test_level_lookup_prefers_exact_code():
     config = Config(root=Path("/tmp"), rules={"E072": Level.OFF})
     assert config.level("E072") is Level.OFF
+
+
+def test_missing_explicit_config_raises(tmp_path):
+    with pytest.raises(ConfigError, match="config not found"):
+        load(config_path=tmp_path / "nope.toml")
+
+
+def test_malformed_toml_raises(tmp_path):
+    path = tmp_path / "tos.toml"
+    path.write_text("this is not toml [[[", encoding="utf-8")
+    with pytest.raises(ConfigError, match="invalid TOML"):
+        load(config_path=path)

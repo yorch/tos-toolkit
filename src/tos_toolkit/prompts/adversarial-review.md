@@ -33,13 +33,17 @@ finding *against the document*, with your reasoning.
 
 ## Required output
 
-First line, exactly one of:
+First line, exactly one of — no code fence, no preamble, nothing before it:
 
-```text
 VERDICT: BLOCK
+
+or
+
 VERDICT: WARN
+
+or
+
 VERDICT: PASS
-```
 
 Then these four sections, in this order, always present. Write `- none` when a
 section is empty. Never omit a section.

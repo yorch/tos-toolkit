@@ -70,7 +70,12 @@ def _build_parser() -> argparse.ArgumentParser:
 
     init = subparsers.add_parser("init", help="scaffold a project")
     init.add_argument("--force", action="store_true", help="overwrite existing files")
-    init.add_argument("--profile", default="strict", help="profile to put in tos.toml")
+    init.add_argument(
+        "--profile",
+        dest="init_profile",
+        default=None,
+        help="profile to put in tos.toml (default: strict)",
+    )
 
     docs = subparsers.add_parser("docs", help="ThinkScript knowledge base")
     docs.add_argument("topic", nargs="?", help="topic file stem, e.g. gotchas")
@@ -92,8 +97,14 @@ def _build_parser() -> argparse.ArgumentParser:
 # file discovery
 
 
-def _walk(targets: list[str], root: Path) -> tuple[list[Path], list[Path]]:
-    """Return (thinkscript files, stray .ts files)."""
+def _walk(
+    targets: list[str], root: Path, *, strict_paths: bool = False
+) -> tuple[list[Path], list[Path]]:
+    """Return (thinkscript files, stray .ts files).
+
+    With *strict_paths*, an explicit path that does not exist raises, so a typo
+    in a pre-commit hook cannot silently check zero files.
+    """
     files: list[Path] = []
     stray: list[Path] = []
     for target in targets:
@@ -109,6 +120,8 @@ def _walk(targets: list[str], root: Path) -> tuple[list[Path], list[Path]]:
                 files.append(path)
             continue
         if not path.is_dir():
+            if strict_paths:
+                raise SystemExit(2)
             continue
         for item in sorted(path.rglob("*")):
             if not item.is_file():
@@ -138,7 +151,11 @@ def _cmd_lint(args, config) -> int:
         )
         return 0
 
-    files, stray = _walk(targets, config.root)
+    try:
+        files, stray = _walk(targets, config.root, strict_paths=bool(args.paths))
+    except SystemExit:
+        print(f"error: path not found: {' '.join(args.paths)}", file=sys.stderr)
+        return 2
     report = Report()
 
     for path in stray:
@@ -235,17 +252,20 @@ def _cmd_status(args, config) -> int:
     for rel, kind, status, version in rows:
         print(f"{status:<12} {kind:<9} {version:<8} {rel}")
 
+    known = config.statuses
     counts: dict[str, int] = {}
     for _, _, status, _ in rows:
-        counts[status] = counts.get(status, 0) + 1
+        key = status if status in known else "unknown"
+        counts[key] = counts.get(key, 0) + 1
     print("\nSummary")
-    for status in ["draft", "validated", "in-use", "deprecated"]:
+    for status in ["draft", "validated", "in-use", "deprecated", "unknown"]:
         if counts.get(status):
             print(f"  {status:<12} {counts[status]}")
-    debt = counts.get("draft", 0)
+    debt = counts.get("draft", 0) + counts.get("unknown", 0)
     if debt:
         print(
-            f"\nValidation debt: {debt} draft script(s) awaiting a human paste-test."
+            f"\nValidation debt: {debt} script(s) not validated "
+            "(draft or missing/unknown @status)."
         )
     return 0
 
@@ -258,7 +278,11 @@ def _cmd_syntax(args, config) -> int:
         for target in config.targets
         if (config.root / target).exists()
     ]
-    files, _ = _walk(targets, config.root)
+    try:
+        files, _ = _walk(targets, config.root, strict_paths=bool(args.paths))
+    except SystemExit:
+        print(f"error: path not found: {' '.join(args.paths)}", file=sys.stderr)
+        return 2
     if not files:
         print("No .thinkscript files found.")
         return 0
@@ -282,7 +306,9 @@ def _cmd_syntax(args, config) -> int:
         return 2
 
     failures = 0
+    processed = 0
     for path in files:
+        processed += 1
         ok, messages = bridge.check_file(path, runtimes)
         if ok:
             print(f"  OK (grammar only): {path}")
@@ -294,7 +320,9 @@ def _cmd_syntax(args, config) -> int:
             if not args.keep_going:
                 break
 
-    print(f"\n{len(files)} file(s) checked, {failures} with grammar errors.")
+    skipped = len(files) - processed
+    note = f" ({skipped} not checked; use --keep-going)" if skipped else ""
+    print(f"\n{processed} file(s) checked, {failures} with grammar errors{note}.")
     print("NOTE: grammar only — function names, types, and semantics are not verified.")
     return 1 if failures else 0
 
@@ -361,7 +389,8 @@ def _cmd_new(args, config) -> int:
 def _cmd_init(args, config) -> int:
     from . import scaffold
 
-    return scaffold.init_project(Path.cwd(), profile=args.profile, force=args.force)
+    profile = args.init_profile or args.profile or "strict"
+    return scaffold.init_project(Path.cwd(), profile=profile, force=args.force)
 
 
 def _cmd_review(args, config) -> int:

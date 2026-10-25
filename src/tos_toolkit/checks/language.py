@@ -7,8 +7,6 @@ rule in this module may depend on house conventions — those belong in `header`
 
 from __future__ import annotations
 
-import re
-
 from ..diagnostics import Finding
 from ..lexer import Kind
 
@@ -25,7 +23,16 @@ CHART_ONLY = {
 }
 
 _RESERVED = {
+    "above",
+    "ago",
     "and",
+    "at",
+    "bar",
+    "bars",
+    "below",
+    "between",
+    "case",
+    "crosses",
     "declare",
     "def",
     "else",
@@ -38,7 +45,18 @@ _RESERVED = {
     "plot",
     "rec",
     "script",
+    "default",
+    "do",
+    "from",
+    "is",
+    "profile",
+    "reference",
+    "switch",
     "then",
+    "to",
+    "while",
+    "with",
+    "within",
     "yes",
 }
 
@@ -119,32 +137,44 @@ def _delimiters(ctx) -> list[Finding]:
 
 
 def _duplicate_identifiers(ctx) -> list[Finding]:
-    seen: dict[str, int] = {}
+    """Same-spelling duplicates, case-insensitively, within a category.
+
+    `def`/`rec`/`input` share a namespace; `plot` is separate. A cross-category
+    case pair (``def pdHigh`` + ``plot PdHigh``) is E071's job, so it is not
+    double-reported here.
+    """
+    non_plot: dict[str, tuple[str, int]] = {}
+    plot: dict[str, tuple[str, int]] = {}
     out: list[Finding] = []
+
     for statement in ctx.statements:
-        if statement.keyword not in {"def", "rec", "plot", "input"}:
+        keyword = statement.keyword
+        if keyword not in {"def", "rec", "plot", "input"}:
             continue
-        name = next(
-            (t for t in statement.tokens[1:] if t.kind is Kind.IDENT), None
-        )
+        name = next((t for t in statement.tokens[1:] if t.kind is Kind.IDENT), None)
         if name is None:
             continue
+        bucket = plot if keyword == "plot" else non_plot
         key = name.lower
-        out.append(
-            ctx.finding(
-                "E070", name.line, f"identifier '{name.value}' declared more than once"
+        if key in bucket:
+            original, first_line = bucket[key]
+            out.append(
+                ctx.finding(
+                    "E070",
+                    name.line,
+                    f"identifier '{name.value}' already declared as '{original}' "
+                    f"on line {first_line}",
+                )
             )
-            if key in seen
-            else None
-        )
-        seen.setdefault(key, name.line)
+        else:
+            bucket[key] = (name.value, name.line)
     return [item for item in out if item is not None]
 
 
 def _case_collisions(ctx) -> list[Finding]:
-    """ThinkScript identifiers are case-insensitive; def and plot must not collide."""
-    defs: dict[str, str] = {}
-    plots: dict[str, str] = {}
+    """ThinkScript identifiers are case-insensitive: def and plot must not collide."""
+    non_plot: dict[str, tuple[str, int]] = {}
+    plot: dict[str, tuple[str, int]] = {}
     for statement in ctx.statements:
         keyword = statement.keyword
         if keyword not in {"def", "rec", "input", "plot"}:
@@ -152,27 +182,26 @@ def _case_collisions(ctx) -> list[Finding]:
         name = next((t for t in statement.tokens[1:] if t.kind is Kind.IDENT), None)
         if name is None:
             continue
-        if keyword == "plot":
-            plots.setdefault(name.lower, name.value)
-        else:
-            defs.setdefault(name.lower, name.value)
+        bucket = plot if keyword == "plot" else non_plot
+        bucket.setdefault(name.lower, (name.value, name.line))
+
     out = []
-    for key in sorted(set(defs) & set(plots)):
+    for key in sorted(set(non_plot) & set(plot)):
+        def_name, def_line = non_plot[key]
+        plot_name, _ = plot[key]
         out.append(
             ctx.finding(
                 "E071",
-                ctx.header_lines.get("name", 1),
-                f"'{defs[key]}' and '{plots[key]}' are the same identifier "
+                def_line,
+                f"'{def_name}' and '{plot_name}' are the same identifier "
                 "(ThinkScript is case-insensitive)",
-                hint="Rename one of them; this fails to compile as 'Identifier Already Used'.",
+                hint="Rename one; this fails to compile as 'Identifier Already Used'.",
             )
         )
-    return out
+    return [item for item in out if item is not None]
 
 
 def _recursion(ctx) -> list[Finding]:
-    from ..lexer import Statement  # local import keeps module import order simple
-
     out: list[Finding] = []
     for statement in ctx.statements:
         if statement.keyword != "rec":
@@ -182,15 +211,25 @@ def _recursion(ctx) -> list[Finding]:
         if name is None:
             continue
         key = name.lower
-        uses = sum(1 for t in tokens if t.kind is Kind.IDENT and t.lower == key)
-        if uses > 1:
+        # Count references *after* the declaration token: including it makes the
+        # ordinary `rec x = ... else x[1] + 1` look like two self-references.
+        declared_at = tokens.index(name)
+        uses = sum(
+            1
+            for t in tokens[declared_at + 1 :]
+            if t.kind is Kind.IDENT and t.lower == key
+        )
+        if uses >= 3:
             out.append(
                 ctx.finding(
                     "W090",
                     name.line,
                     f"recursive variable '{name.value}' references itself {uses}x; "
                     "the platform's exact rule is unverified",
-                    hint="One self-reference per branch is believed safe; test before shipping.",
+                    hint=(
+                        "One reference per branch (so 1-2 total) is the common form and "
+                        "is not flagged. 3+ has no known precedent — paste-test it."
+                    ),
                 )
             )
         for index, token in enumerate(tokens):

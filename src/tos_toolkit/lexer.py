@@ -40,6 +40,9 @@ class Kind(str, Enum):
 
 _OPENERS = {Kind.LPAREN, Kind.LBRACKET, Kind.LBRACE}
 
+# Statements that are a brace block with no trailing ';'.
+_BLOCK_KEYWORDS = {"script", "switch", "profile"}
+
 
 @dataclass(frozen=True)
 class Token:
@@ -260,6 +263,17 @@ def split_statements(tokens: list[Token]) -> list[Statement]:
             current = []
             continue
         current.append(token)
+        # A `script NAME { ... }` block is a statement with no trailing ';'.
+        # Without this, the next declaration is glued onto the block and every
+        # later check sees one statement whose keyword is 'script'.
+        #
+        # Restricted to block-introducing keywords so `if c { } else { }` style
+        # chains are not split into a stray `else` statement.
+        if token.kind is Kind.RBRACE and token.depth == 0 and current:
+            head = current[0]
+            if head.kind is Kind.IDENT and head.lower in _BLOCK_KEYWORDS:
+                statements.append(Statement(current, head.line, True))
+                current = []
 
     if current:
         statements.append(Statement(current, current[0].line, False))

@@ -12,6 +12,8 @@ See ``docs/adr/0004-no-jar-redistribution.md``.
 
 from __future__ import annotations
 
+import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -22,7 +24,7 @@ JAVA_SOURCE = Path(__file__).resolve().parent / "java" / "Checker.java"
 
 # Globs for the jars the shim needs. Matched against the newest versioned dir.
 _REQUIRED = [
-    "thinkscript-*.jar",
+    "thinkscript-[0-9]*.jar",
     "thinkscript-scripts-*.jar",
     "thinkscript-parser-*.jar",
     "thinkscript-api-*.jar",
@@ -104,15 +106,22 @@ def _find_javac(java: str) -> Path:
     return Path(found)
 
 
-def _build_classpath(tos_path: str) -> list[str]:
+def _version_key(path: Path) -> tuple:
+    """Sort '1993.2.4' numerically, so 1994.0.56 beats 1993.3.1."""
+    parts = re.split(r"[.\-_]", path.name)
+    return tuple(int(p) if p.isdigit() else 0 for p in parts)
+
+
+def _build_classpath(tos_path: str) -> tuple[list[str], str]:
     root = Path(tos_path)
     usergui = root / "usergui"
     if not usergui.is_dir():
         raise ParserUnavailable(f"no usergui directory under {root}")
 
     version_dir = None
-    for candidate in sorted(usergui.iterdir(), reverse=True):
-        if candidate.is_dir() and list(candidate.glob("thinkscript-parser-*.jar")):
+    candidates = [c for c in usergui.iterdir() if c.is_dir()]
+    for candidate in sorted(candidates, key=_version_key, reverse=True):
+        if list(candidate.glob("thinkscript-parser-*.jar")):
             version_dir = candidate
             break
     if version_dir is None:
@@ -120,42 +129,61 @@ def _build_classpath(tos_path: str) -> list[str]:
 
     jars: list[str] = []
     for pattern in _REQUIRED:
-        matches = sorted(version_dir.glob(pattern))
+        matches = list(version_dir.glob(pattern))
         if matches:
-            jars.append(str(matches[-1]))
+            jars.append(str(max(matches, key=_version_key)))
     if not jars:
         raise ParserUnavailable("no thinkscript jars found")
 
     suit = root / "suit"
     if suit.is_dir():
-        for candidate in sorted(suit.iterdir(), reverse=True):
-            if (candidate / "dxlib-3.351.jar").is_file():
+        suit_versions = [c for c in suit.iterdir() if c.is_dir()]
+        for candidate in sorted(suit_versions, key=_version_key, reverse=True):
+            if list(candidate.glob("dxlib-*.jar")):
                 jars.extend(str(jar) for jar in sorted(candidate.glob("*.jar")))
                 break
-    return jars
+    return jars, version_dir.name
 
 
 def prepare(tos_path: str) -> Runtimes:
     """Locate Java and the ToS jars, compiling the reflection shim if needed."""
     java = _find_java()
-    jars = _build_classpath(tos_path)
+    jars, tos_version = _build_classpath(tos_path)
 
-    build_dir = Path(__file__).resolve().parent / "java" / ".classes"
-    build_dir.mkdir(parents=True, exist_ok=True)
+    build_root = Path(__file__).resolve().parent / "java"
+    build_dir = build_root / ".classes"
+    try:
+        build_dir.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        # Read-only package install (e.g. a system site-packages): fall back to
+        # the user's cache directory.
+        build_dir = Path(tempfile.gettempdir()) / "tos-toolkit-shim"
+        build_dir.mkdir(parents=True, exist_ok=True)
+
     shim = build_dir / "Checker.class"
+    stamp = build_dir / "stamp"
+    signature = f"{tos_version}|{JAVA_SOURCE.stat().st_mtime_ns}"
+    current = stamp.read_text(encoding="utf-8") if stamp.is_file() else ""
 
-    if not shim.is_file() or shim.stat().st_mtime < JAVA_SOURCE.stat().st_mtime:
+    if (
+        not shim.is_file()
+        or shim.stat().st_mtime < JAVA_SOURCE.stat().st_mtime
+        or current != signature
+    ):
         javac = _find_javac(java)
         result = subprocess.run(
-            [str(javac), "-cp", ":".join(jars), "-d", str(build_dir), str(JAVA_SOURCE)],
+            [str(javac), "-cp", os.pathsep.join(jars), "-d", str(build_dir), str(JAVA_SOURCE)],
             capture_output=True,
             text=True,
             timeout=120,
         )
         if result.returncode != 0:
-            raise ParserUnavailable(f"failed to build parser shim:\n{result.stderr.strip()}")
+            raise ParserUnavailable(
+                f"failed to build parser shim:\n{result.stderr.strip()}"
+            )
+        stamp.write_text(signature, encoding="utf-8")
 
-    classpath = ":".join([str(build_dir), *jars])
+    classpath = os.pathsep.join([str(build_dir), *jars])
     return Runtimes(java=java, classpath=classpath)
 
 
@@ -173,7 +201,11 @@ def check_file(path: Path, runtimes: Runtimes) -> tuple[bool, list[str]]:
         )
 
     output = f"{result.stdout}\n{result.stderr}"
-    if "RESULT: OK" in output:
+
+    # Require a clean exit and an exact first-line match. A substring search
+    # would let a source string literal such as "RESULT: OK" produce a false pass.
+    first_line = next((line.strip() for line in output.splitlines() if line.strip()), "")
+    if result.returncode == 0 and first_line == "RESULT: OK":
         return True, []
 
     messages: list[str] = []
