@@ -62,7 +62,8 @@ conventions section to `AGENTS.md`.
 | `tos review` | * | Adversarial review of a diff, files, or the whole repo |
 | `tos syntax-check` | **yes** | Grammar validation using the real parser |
 
-`tos review` needs either the `claude` or `codex` CLI on PATH.
+`tos review` needs the `codex` CLI on PATH (pinned model `gpt-6.1-sol`).
+`harness = "claude"` is available as a substitute when Codex is unavailable.
 
 ### `tos lint`
 
@@ -153,8 +154,8 @@ enabled = true
 tos_path = "/Applications/thinkorswim"
 
 [review]
-harness = "claude"           # claude | codex
-model = "claude-opus-5-5"
+harness = "codex"            # codex | claude
+model = "gpt-6.1-sol"
 effort = "high"
 
 [checks]

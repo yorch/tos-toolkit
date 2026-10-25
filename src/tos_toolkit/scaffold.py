@@ -52,7 +52,10 @@ def new_file(config, kind_or_path: str, path: str | None, name: str | None) -> i
     if rel.suffix == ".thinkscript":
         rel = rel.with_suffix("")
 
-    template = TEMPLATE_DIR / f"{kind}.thinkscript"
+    # Prefer the project's own template so local corrections are used; fall back
+    # to the packaged starter when the project has not customised one.
+    local = config.root / config.templates_dir / f"{kind}.thinkscript"
+    template = local if local.is_file() else TEMPLATE_DIR / f"{kind}.thinkscript"
     if not template.is_file():
         raise SystemExit(f"error: missing template for kind '{kind}'")
 
@@ -103,8 +106,10 @@ enabled = true
 tos_path = "/Applications/thinkorswim"
 
 [review]
-harness = "claude"          # "claude" (larger context) or "codex"
-model = "claude-opus-5-5"
+# codex + gpt-6.1-sol is the pinned gate: reproducible, and a project cannot
+# quietly soften its own review by changing the model.
+harness = "codex"
+model = "gpt-6.1-sol"
 effort = "high"
 
 [checks]
@@ -134,9 +139,13 @@ syntax:
 new *args:
     @tos new {{args}}
 
-# Adversarial review of uncommitted changes
+# Adversarial review of uncommitted changes (the gate)
 review:
     @tos review --mode diff
+
+# Substitute reviewer for provider outages. Exits 3: NOT the gate.
+review-substitute:
+    @tos review --mode diff --harness claude --model claude-opus-5-5
 
 # Whole-repo sweep
 audit:

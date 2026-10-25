@@ -73,6 +73,8 @@ def check(ctx) -> list[Finding]:
         _recursion,
         _unknown_functions,
         _reserved_assignment,
+        _declaration_placement,
+        _repaint_honesty,
         _style,
     ):
         out.extend(item for item in fn(ctx) if item is not None)
@@ -311,6 +313,46 @@ def _reserved_assignment(ctx) -> list[Finding]:
                     )
                 )
     return [item for item in out if item is not None]
+
+
+def _declaration_placement(ctx) -> list[Finding]:
+    """A study or strategy must open with a `declare` statement.
+
+    Only runs when the artifact kind is known, which requires a header block —
+    without one there is nothing to say the file is a study at all.
+    """
+    kind = ctx.header.get("kind", "").strip().lower()
+    if kind not in {"study", "strategy"}:
+        return []
+    ordered = [s for s in ctx.statements if s.tokens]
+    if not ordered:
+        return []
+    if ordered[0].keyword != "declare":
+        return [
+            ctx.finding(
+                "E031",
+                ordered[0].start_line,
+                "first executable statement must be a 'declare'; comments may precede it",
+                hint=f"'{kind}' declares 'upper' or 'lower'.",
+            )
+        ]
+    return []
+
+
+def _repaint_honesty(ctx) -> list[Finding]:
+    """Reading a higher timeframe repaints intrabar; @repaints must say so."""
+    if "AggregationPeriod" not in ctx.code:
+        return []
+    if ctx.header.get("repaints", "").strip().lower() == "no":
+        return [
+            ctx.finding(
+                "W050",
+                1,
+                "reads a higher timeframe but declares '@repaints: no'",
+                hint="A higher-timeframe read updates through the session.",
+            )
+        ]
+    return []
 
 
 def _style(ctx) -> list[Finding]:

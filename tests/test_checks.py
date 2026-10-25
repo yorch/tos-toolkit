@@ -395,3 +395,57 @@ def test_if_else_brace_chain_is_not_split_into_else_statements(tmp_path):
     text = "def x = 1;\nif c { def a = 1; } else { def b = 2; }\nplot Y = x;\n"
     statements = split_statements(tokenize(text))
     assert all(s.keyword != "else" for s in statements)
+
+
+# --------------------------------------------------------------------------
+# restored checks (regressions found when migrating a consumer repo)
+
+
+def test_study_must_open_with_declare(tmp_path):
+    text = STUDY.replace("declare upper;\n\n", "")
+    assert "E031" in codes(_findings(tmp_path, text))
+
+
+def test_scan_is_exempt_from_declare_rule(tmp_path):
+    findings = _findings(tmp_path, SCAN, subdir="scans", filename="sample_scan.thinkscript")
+    assert "E031" not in codes(findings)
+
+
+def test_option_function_requires_option_asset(tmp_path):
+    text = STUDY.replace(
+        "plot Value = computed;", "plot Value = GetATMOption(close, 1, 1);"
+    )
+    findings = _findings(tmp_path, text)
+    assert "E050" in codes(findings), codes(findings)
+
+
+def test_option_asset_declared_is_fine(tmp_path):
+    text = STUDY.replace("# @assets: index", "# @assets: index, option").replace(
+        "plot Value = computed;", "plot Value = GetATMOption(close, 1, 1);"
+    )
+    findings = _findings(tmp_path, text)
+    assert "E050" not in codes(findings)
+
+
+def test_repaint_honesty(tmp_path):
+    text = (
+        STUDY.replace("# @version: 0.1.0", "# @version: 0.1.0\n# @repaints: no")
+        .replace(
+            "plot Value = computed;",
+            "def dailyClose = close(period = AggregationPeriod.DAY);\nplot Value = dailyClose;",
+        )
+    )
+    findings = _findings(tmp_path, text)
+    assert "W050" in codes(findings), codes(findings)
+
+
+def test_repaint_declared_yes_is_fine(tmp_path):
+    text = (
+        STUDY.replace("# @version: 0.1.0", "# @version: 0.1.0\n# @repaints: yes")
+        .replace(
+            "plot Value = computed;",
+            "def dailyClose = close(period = AggregationPeriod.DAY);\nplot Value = dailyClose;",
+        )
+    )
+    findings = _findings(tmp_path, text)
+    assert "W050" not in codes(findings)

@@ -78,8 +78,8 @@ class Config:
     parser_enabled: bool = True
     tos_path: str = "/Applications/thinkorswim"
     # review
-    review_harness: str = "claude"
-    review_model: str = "claude-opus-5-5"
+    review_harness: str = "codex"
+    review_model: str = "gpt-6.1-sol"
     review_effort: str = "high"
 
     def level(self, code: str, default: Level = Level.ERROR) -> Level:

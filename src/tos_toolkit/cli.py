@@ -88,6 +88,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
     review = subparsers.add_parser("review", help="adversarial review")
     review.add_argument("--mode", choices=["diff", "audit", "files"], default="diff")
+    review.add_argument("--harness", default=None, help="override review.harness")
+    review.add_argument("--model", default=None, help="override review.model")
     review.add_argument("paths", nargs="*")
 
     return parser
@@ -396,6 +398,10 @@ def _cmd_init(args, config) -> int:
 def _cmd_review(args, config) -> int:
     from . import review
 
+    if args.harness:
+        config.review_harness = args.harness
+    if args.model:
+        config.review_model = args.model
     return review.run(config, mode=args.mode, paths=args.paths)
 
 

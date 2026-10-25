@@ -211,8 +211,55 @@ def _invoke_inner(config, prompt: str) -> tuple[int, str, str]:
     return result.returncode, result.stdout, result.stderr
 
 
+PINNED_HARNESS = "codex"
+PINNED_MODEL = "gpt-6.1-sol"
+
+
+def _lint_preflight(config) -> bool:
+    """Refuse to review code that already fails static analysis.
+
+    Reviewing a file that lint rejects wastes the model call and can produce a
+    PASS on a diff that does not even parse.
+    """
+    from .checks import Context, run_all
+    from .registry import load as load_registry
+
+    registry = load_registry()
+    targets = [
+        config.root / target
+        for target in config.targets
+        if (config.root / target).exists()
+    ]
+    if not targets:
+        return True
+
+    errors = 0
+    for target in targets:
+        for path in sorted(target.rglob("*.thinkscript")):
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            ctx = Context(
+                path=path, root=config.root, text=text, config=config, registry=registry
+            )
+            for finding in run_all(ctx):
+                if finding.is_error:
+                    errors += 1
+                    print(finding.render(), file=sys.stderr)
+    if errors:
+        print(
+            f"review: {errors} static error(s); fix them first (tos lint).",
+            file=sys.stderr,
+        )
+        return False
+    return True
+
+
 def run(config, mode: str = "diff", paths: list[str] | None = None) -> int:
     root = config.root
+    if not _lint_preflight(config):
+        return 1
     try:
         scope = _scope(root, mode, paths or [])
     except ReviewUnavailable as exc:
@@ -228,6 +275,15 @@ def run(config, mode: str = "diff", paths: list[str] | None = None) -> int:
         f"model={config.review_model} · prompt={len(prompt)} bytes ──",
         file=sys.stderr,
     )
+    substitute = (
+        config.review_harness != PINNED_HARNESS or config.review_model != PINNED_MODEL
+    )
+    if substitute:
+        print(
+            "SUBSTITUTE REVIEW — this is not the pinned gate "
+            "(codex + gpt-6.1-sol). Record it as a waiver, not a pass.",
+            file=sys.stderr,
+        )
 
     code, stdout, stderr = _invoke(config, prompt)
     if code != 0 or not stdout.strip():
@@ -264,8 +320,22 @@ def run(config, mode: str = "diff", paths: list[str] | None = None) -> int:
     if verdict == "BLOCK":
         print("GATE: BLOCK — do not commit.", file=sys.stderr)
         return 1
+
+    if substitute:
+        # A distinct non-zero code: automation must never read a substitute
+        # PASS/WARN as the pinned gate having passed.
+        print(
+            f"SUBSTITUTE: {verdict} — the gate is NOT satisfied. Record this run as "
+            "a waiver and re-run the pinned reviewer when it is available.",
+            file=sys.stderr,
+        )
+        return 3
+
     if verdict == "WARN":
-        print("GATE: WARN — commit allowed; record waivers in the commit message.", file=sys.stderr)
+        print(
+            "GATE: WARN — commit allowed; record waivers in the commit message.",
+            file=sys.stderr,
+        )
         return 0
     print("GATE: PASS.", file=sys.stderr)
     return 0

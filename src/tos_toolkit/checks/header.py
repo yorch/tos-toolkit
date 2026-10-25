@@ -36,6 +36,7 @@ def check(ctx) -> list[Finding]:
     out.extend(_unknown_keys(ctx))
     out.extend(_version(ctx))
     out.extend(_inputs(ctx))
+    out.extend(_asset_consistency(ctx))
     return [item for item in out if item is not None]
 
 
@@ -106,6 +107,45 @@ def _values(ctx) -> list[Finding]:
                     "E103", 1, f"@timeframes contains unknown value '{timeframe}'"
                 )
             )
+    return [item for item in out if item is not None]
+
+
+def _asset_consistency(ctx) -> list[Finding]:
+    """A script that calls option functions must declare the `option` asset.
+
+    The registry carries a category per function, so this stays in sync as the
+    registry grows instead of hard-coding a function list.
+    """
+    declared = set(_split_list(ctx.header.get("assets", "")))
+    if not declared:
+        return []
+
+    from ..lexer import Kind
+
+    seen: set[str] = set()
+    out: list[Finding] = []
+    for statement in ctx.statements:
+        tokens = statement.tokens
+        for index, token in enumerate(tokens[:-1]):
+            if token.kind is not Kind.IDENT or tokens[index + 1].kind is not Kind.LPAREN:
+                continue
+            if index > 0 and tokens[index - 1].kind is Kind.OP and tokens[index - 1].value == ".":
+                continue
+            if token.lower in seen:
+                continue
+            seen.add(token.lower)
+            info = ctx.registry.function(token.lower)
+            if info is None:
+                continue
+            if info.category in {"option", "future"} and info.category not in declared:
+                out.append(
+                    ctx.finding(
+                        "E050",
+                        token.line,
+                        f"uses {token.value}() but @assets does not declare "
+                        f"'{info.category}'",
+                    )
+                )
     return [item for item in out if item is not None]
 
 

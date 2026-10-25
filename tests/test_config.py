@@ -83,3 +83,29 @@ def test_malformed_toml_raises(tmp_path):
     path.write_text("this is not toml [[[", encoding="utf-8")
     with pytest.raises(ConfigError, match="invalid TOML"):
         load(config_path=path)
+
+
+def test_review_defaults_are_the_pinned_gate(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    config = load()
+    assert config.review_harness == "codex"
+    assert config.review_model == "gpt-6.1-sol"
+
+
+def test_local_template_wins_over_packaged(tmp_path, monkeypatch):
+    from tos_toolkit.scaffold import new_file
+    from tos_toolkit.config import load as load_config
+
+    (tmp_path / "tos.toml").write_text(
+        '[project]\ntemplates_dir = "templates"\n', encoding="utf-8"
+    )
+    templates = tmp_path / "templates"
+    templates.mkdir()
+    (templates / "study.thinkscript").write_text(
+        "# @name: __NAME__\n# LOCAL TEMPLATE\ndeclare upper;\n", encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+    config = load_config()
+    new_file(config, "study", "trend/from_local", None)
+    body = (tmp_path / "studies" / "trend" / "from_local.thinkscript").read_text()
+    assert "LOCAL TEMPLATE" in body
