@@ -155,10 +155,32 @@ def prepare(tos_path: str) -> Runtimes:
     try:
         build_dir.mkdir(parents=True, exist_ok=True)
     except OSError:
-        # Read-only package install (e.g. a system site-packages): fall back to
-        # the user's cache directory.
-        build_dir = Path(tempfile.gettempdir()) / "tos-toolkit-shim"
-        build_dir.mkdir(parents=True, exist_ok=True)
+        # Read-only package install (e.g. a system site-packages). Fall back to a
+        # per-user cache, created owner-only: a world-writable, predictable path
+        # would let another local user pre-seed Checker.class, which we then put
+        # first on the execution classpath.
+        cache_home = Path(
+            os.environ.get("XDG_CACHE_HOME") or (Path.home() / ".cache")
+        )
+        build_dir = cache_home / "tos-toolkit" / "shim"
+        build_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        try:
+            build_dir.chmod(0o700)
+        except OSError:
+            pass
+
+    # If the package cache is not ours to trust, move to the per-user cache
+    # rather than failing: a shared directory we do not own could be pre-seeded.
+    if build_dir.stat().st_uid != os.getuid() or any(
+        entry.is_symlink() for entry in build_dir.iterdir()
+    ):
+        cache_home = Path(os.environ.get("XDG_CACHE_HOME") or (Path.home() / ".cache"))
+        build_dir = cache_home / "tos-toolkit" / "shim"
+        build_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        try:
+            build_dir.chmod(0o700)
+        except OSError:
+            pass
 
     shim = build_dir / "Checker.class"
     stamp = build_dir / "stamp"
@@ -187,18 +209,33 @@ def prepare(tos_path: str) -> Runtimes:
     return Runtimes(java=java, classpath=classpath)
 
 
-def check_file(path: Path, runtimes: Runtimes) -> tuple[bool, list[str]]:
-    """Ask the real parser about one file. Returns (ok, messages)."""
+OK = "ok"
+FAIL = "fail"
+ERROR = "error"
+
+
+def check_file(path: Path, runtimes: Runtimes) -> tuple[str, list[str]]:
+    """Ask the real parser about one file.
+
+    Returns (status, messages) where status is ``OK``, ``FAIL`` (the parser ran
+    and rejected the file) or ``ERROR`` (the parser did not run). Conflating the
+    last two would turn a broken bridge into a grammar failure.
+    """
     # The shim reads a path; keep the original name so error messages are useful.
     with tempfile.TemporaryDirectory(prefix="tos-syntax-") as tmp:
         staged = Path(tmp) / path.name
         shutil.copy2(path, staged)
-        result = subprocess.run(
-            [runtimes.java, "-cp", runtimes.classpath, "Checker", str(staged)],
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
+        try:
+            result = subprocess.run(
+                [runtimes.java, "-cp", runtimes.classpath, "Checker", str(staged)],
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+        except subprocess.TimeoutExpired:
+            return ERROR, ["the parser timed out after 120s"]
+        except OSError as exc:
+            return ERROR, [f"could not run the parser: {exc}"]
 
     output = f"{result.stdout}\n{result.stderr}"
 
@@ -206,7 +243,9 @@ def check_file(path: Path, runtimes: Runtimes) -> tuple[bool, list[str]]:
     # would let a source string literal such as "RESULT: OK" produce a false pass.
     first_line = next((line.strip() for line in output.splitlines() if line.strip()), "")
     if result.returncode == 0 and first_line == "RESULT: OK":
-        return True, []
+        return OK, []
+    if first_line != "RESULT: FAIL":
+        return ERROR, [f"parser produced no verdict (exit {result.returncode}): {output[:300]}"]
 
     messages: list[str] = []
     for line in output.splitlines():
@@ -217,4 +256,4 @@ def check_file(path: Path, runtimes: Runtimes) -> tuple[bool, list[str]]:
             messages.append(stripped)
     if not messages:
         messages.append(f"unexpected parser output (exit {result.returncode}): {output[:300]}")
-    return False, messages
+    return FAIL, messages

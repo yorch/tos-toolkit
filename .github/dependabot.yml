@@ -1,0 +1,20 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    groups:
+      dev-dependencies:
+        patterns: ["pytest*", "build", "twine"]
+  - package-ecosystem: pip
+    directory: "/docs"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3

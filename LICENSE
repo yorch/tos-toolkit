@@ -23,6 +23,9 @@ SOFTWARE.
 ---
 
 Note on third-party software: this project does not bundle, redistribute, or
-reverse engineer any thinkorswim / Schwab code. The optional `tos syntax-check`
-command invokes a thinkorswim installation that the user has already installed
-and licensed on their own machine. See docs/adr/0004-no-jar-redistribution.md.
+decompile any thinkorswim / Schwab code, and contains no reconstructed grammar or
+derived implementation. Some public function, token, and rule *names* were
+observed by reading a locally installed copy read-only; names are functional
+interface facts, not implementation. The optional `tos syntax-check` command
+invokes a thinkorswim installation that the user has already installed and
+licensed on their own machine. See docs/adr/0004-no-jar-redistribution.md.

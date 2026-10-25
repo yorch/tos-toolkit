@@ -22,7 +22,7 @@ from pathlib import Path
 from . import __version__
 from .checks import Context, run_all
 from .config import CONFIG_NAME, ConfigError, load
-from .diagnostics import ERROR, Finding, Report
+from .diagnostics import ERROR, WARNING, Finding, Level, Report
 from .registry import load as load_registry
 
 THINKSSCRIPT_SUFFIX = ".thinkscript"
@@ -165,13 +165,16 @@ def _cmd_lint(args, config) -> int:
             rel = path.resolve().relative_to(config.root.resolve())
         except ValueError:
             rel = path
+        level = config.level("E005")
+        if level is Level.OFF:
+            continue
         report.add(
             Finding(
                 str(rel),
                 0,
                 "E005",
                 f"'{path.name}' collides with TypeScript; rename to .thinkscript",
-                ERROR,
+                ERROR if level is Level.ERROR else WARNING,
             )
         )
 
@@ -179,15 +182,17 @@ def _cmd_lint(args, config) -> int:
         try:
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
-            report.add(
-                Finding(
-                    str(path.relative_to(config.root) if path.is_relative_to(config.root) else path),
-                    0,
-                    "E006",
-                    "not valid UTF-8",
-                    ERROR,
+            level = config.level("E006")
+            if level is not Level.OFF:
+                report.add(
+                    Finding(
+                        str(path.relative_to(config.root) if path.is_relative_to(config.root) else path),
+                        0,
+                        "E006",
+                        "not valid UTF-8",
+                        ERROR if level is Level.ERROR else WARNING,
+                    )
                 )
-            )
             continue
         ctx = Context(path=path, root=config.root, text=text, config=config, registry=registry)
         report.files_checked += 1
@@ -308,12 +313,19 @@ def _cmd_syntax(args, config) -> int:
         return 2
 
     failures = 0
+    errors = 0
     processed = 0
     for path in files:
         processed += 1
-        ok, messages = bridge.check_file(path, runtimes)
-        if ok:
+        status, messages = bridge.check_file(path, runtimes)
+        if status == bridge.OK:
             print(f"  OK (grammar only): {path}")
+        elif status == bridge.ERROR:
+            errors += 1
+            print(f"  ERROR (parser did not run): {path}")
+            for message in messages:
+                print(f"    {message}")
+            break
         else:
             failures += 1
             print(f"  FAIL: {path}")
@@ -326,6 +338,13 @@ def _cmd_syntax(args, config) -> int:
     note = f" ({skipped} not checked; use --keep-going)" if skipped else ""
     print(f"\n{processed} file(s) checked, {failures} with grammar errors{note}.")
     print("NOTE: grammar only — function names, types, and semantics are not verified.")
+    if errors:
+        print(
+            "The parser could not run, so nothing was verified. Fix the bridge "
+            "before trusting any result.",
+            file=sys.stderr,
+        )
+        return 2
     return 1 if failures else 0
 
 

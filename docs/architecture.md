@@ -69,17 +69,17 @@ Ranges:
 
 | Range | Meaning |
 | --- | --- |
-| `E0xx` | lexical and file hygiene |
-| `E1xx` | header block |
-| `E2xx` | artifact kind vs location |
-| `E3xx` | declarations |
-| `E4xx` | artifact-specific restrictions |
-| `E5xx` | asset class |
-| `E6xx` | input documentation |
-| `E7xx` | identifiers |
-| `W0xx` | style |
-| `W1xx` | header honesty |
-| `W9xx` | unverified platform behaviour |
+| `E001`–`E006` | lexical and file hygiene |
+| `E101`–`W104` | header block (gated) |
+| `E120` | artifact kind vs location (gated) |
+| `E031` | declaration placement |
+| `E401`–`W402` | artifact-specific restrictions |
+| `E050` | asset class |
+| `W103`, `W104` | input documentation |
+| `E070`–`E073` | identifiers |
+| `W001`, `W002` | style |
+| `W050`, `W090`, `W091` | honesty, unverified behaviour |
+| `W080`, `W081` | naming (gated) |
 
 ## Why the lexer is hand-written
 

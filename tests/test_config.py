@@ -109,3 +109,15 @@ def test_local_template_wins_over_packaged(tmp_path, monkeypatch):
     new_file(config, "study", "trend/from_local", None)
     body = (tmp_path / "studies" / "trend" / "from_local.thinkscript").read_text()
     assert "LOCAL TEMPLATE" in body
+
+
+def test_kind_dirs_merges_rather_than_replaces(tmp_path, monkeypatch):
+    (tmp_path / "tos.toml").write_text(
+        '[project]\nkind_dirs = { study = "indicators" }\n', encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+    config = load()
+    assert config.kind_dirs["study"] == "indicators"
+    # the rest must survive
+    assert config.kind_dirs["scan"] == "scans"
+    assert config.kind_dirs["column"] == "columns"

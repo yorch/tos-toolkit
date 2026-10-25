@@ -15,3 +15,9 @@ src/tos_toolkit/parser/java/.classes/
 .review/
 tmp/
 .DS_Store
+
+# Staged copy of the packaged knowledge base (see scripts/sync_kb_docs.py)
+docs/knowledge-base/
+
+# MkDocs output
+site/

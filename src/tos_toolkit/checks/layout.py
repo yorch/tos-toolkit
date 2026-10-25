@@ -15,6 +15,11 @@ SUFFIX_BY_KIND = {"scan": "_scan", "strategy": "_strat", "column": "_col"}
 
 
 def check(ctx) -> list[Finding]:
+    # Layer 2: directory and naming conventions are house style. With headers
+    # off there is no declared kind to compare against, and the project has said
+    # it does not want these conventions enforced.
+    if ctx.config.header_mode == "off":
+        return []
     out = _kind_matches_directory(ctx) + _naming(ctx)
     return [item for item in out if item is not None]
 

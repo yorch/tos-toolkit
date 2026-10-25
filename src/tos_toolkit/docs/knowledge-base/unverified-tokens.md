@@ -4,9 +4,9 @@ Keywords and operators that exist in the platform's own parser token set but are
 **not documented** in the official reference we have, and not covered elsewhere in
 this knowledge base.
 
-Provenance: token and rule names were read from the tokenizer constants of the
-shipped `thinkscript-parser` jar (see
-[ADR 0006](../adr/0006-no-reverse-engineering.md)). A token existing means the
+Provenance: token and rule names were read from the tokenizer constants of a
+locally installed `thinkscript-parser` jar (see
+[ADR 0004](../adr/0004-no-jar-redistribution.md)). A token existing means the
 *lexer* accepts it. It says nothing about semantics, arity, or whether it is
 reachable from user scripts.
 

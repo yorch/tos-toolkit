@@ -1,0 +1,65 @@
+name: Rule request
+description: A way a ThinkScript file can be wrong that the linter does not catch yet.
+title: "[rule] "
+labels: ["rule-request", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The best rule requests start from a **failure you actually hit**: an
+        error dialog in thinkorswim, or a study that silently rendered nothing.
+
+        Please state which layer the rule belongs to — this is the design
+        constraint that keeps the tool usable outside this project's own
+        conventions (see `docs/adr/0002`).
+
+  - type: textarea
+    id: failure
+    attributes:
+      label: The failure
+      description: What went wrong in the platform, or what was silently wrong.
+    validations:
+      required: true
+
+  - type: textarea
+    id: snippet
+    attributes:
+      label: Code that exhibits it
+      render: thinkscript
+    validations:
+      required: true
+
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Which layer?
+      description: |
+        Layer 1 is true of ThinkScript anywhere. Layer 2 is house convention and
+        is profile-gated.
+      options:
+        - Layer 1 — language or platform fact (always on)
+        - Layer 2 — house convention (profile-gated)
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: detection
+    attributes:
+      label: How could it be detected statically?
+      description: |
+        A regex, a token pattern, a declaration rule — or an honest "I don't
+        think it can be". "Cannot be detected" is a valid and useful answer.
+    validations:
+      required: false
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification status
+      description: |
+        Has this been confirmed in thinkorswim? If not, say so — unverified
+        platform claims are documented as such and must not become hard errors.
+        See `docs/knowledge-base/unverified-tokens.md`.
+    validations:
+      required: true

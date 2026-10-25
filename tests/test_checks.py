@@ -449,3 +449,36 @@ def test_repaint_declared_yes_is_fine(tmp_path):
     )
     findings = _findings(tmp_path, text)
     assert "W050" not in codes(findings)
+
+
+# --------------------------------------------------------------------------
+# regressions found by the public-release audit (codex + claude)
+
+
+def test_constant_namespace_lookup_is_case_insensitive(tmp_path):
+    from tos_toolkit.registry import load as load_registry
+
+    registry = load_registry()
+    assert registry.has_namespace("Color")
+    assert registry.has_namespace("color")
+    assert "light_red" in registry.namespace_members("Color")
+    assert "light_red" in registry.namespace_members("COLOR")
+
+
+def test_chart_only_detection_is_case_insensitive(tmp_path):
+    text = SCAN.replace(
+        "plot Scan = close > avg;",
+        'addlabel(yes, "x", Color.GRAY);\nplot Scan = close > avg;',
+    )
+    findings = _findings(tmp_path, text, subdir="scans", filename="sample_scan.thinkscript")
+    assert "E401" in codes(findings), codes(findings)
+
+
+def test_layout_rules_off_when_header_mode_off(tmp_path):
+    """loose must not complain about kind-vs-directory or naming."""
+    findings = _findings(
+        tmp_path, SCAN, profile="loose", subdir="scans", filename="NotSnake.thinkscript"
+    )
+    found = codes(findings)
+    assert "E120" not in found
+    assert "W080" not in found

@@ -11,7 +11,9 @@ from ..lexer import Kind
 from .language import CHART_ONLY
 
 # In watchlist columns, these two are supported; the rest are not.
-COLUMN_ALLOWED = {"AddLabel", "AssignBackgroundColor"}
+# Comparisons are case-insensitive: ThinkScript identifiers are.
+COLUMN_ALLOWED = {"addlabel", "assignbackgroundcolor"}
+CHART_ONLY_LOWER = {name.lower() for name in CHART_ONLY}
 
 
 def check(ctx) -> list[Finding]:
@@ -57,7 +59,7 @@ def _declares_panel(ctx) -> list[int]:
 def _scan(ctx) -> list[Finding]:
     out: list[Finding] = []
     for name, line in _calls(ctx):
-        if name in CHART_ONLY:
+        if name.lower() in CHART_ONLY_LOWER:
             out.append(
                 ctx.finding(
                     "E401",
@@ -99,7 +101,7 @@ def _scan(ctx) -> list[Finding]:
 def _column(ctx) -> list[Finding]:
     out: list[Finding] = []
     for name, line in _calls(ctx):
-        if name in CHART_ONLY and name not in COLUMN_ALLOWED:
+        if name.lower() in CHART_ONLY_LOWER and name.lower() not in COLUMN_ALLOWED:
             out.append(
                 ctx.finding(
                     "E402", line, f"'{name}' is unavailable in a watchlist column"
@@ -127,7 +129,7 @@ def _column(ctx) -> list[Finding]:
 
 def _strategy(ctx) -> list[Finding]:
     out: list[Finding] = []
-    if not any(name == "AddOrder" for name, _ in _calls(ctx)):
+    if not any(name.lower() == "addorder" for name, _ in _calls(ctx)):
         out.append(
             ctx.finding(
                 "W401",

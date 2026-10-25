@@ -145,7 +145,10 @@ def load(config_path: Path | None = None, profile: str | None = None) -> Config:
         if "targets" in project:
             config.targets = list(project["targets"])
         if "kind_dirs" in project:
-            config.kind_dirs = {str(k): str(v) for k, v in project["kind_dirs"].items()}
+            # Merge: a project overriding one directory must not drop the others.
+            config.kind_dirs.update(
+                {str(k): str(v) for k, v in project["kind_dirs"].items()}
+            )
         if "templates_dir" in project:
             config.templates_dir = str(project["templates_dir"])
 

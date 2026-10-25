@@ -5,17 +5,19 @@ one thing forever. Add new codes, never repurpose an old one.
 
 Code ranges
 -----------
-``E0xx``  lexical / file hygiene (tabs, newlines, ``//`` comments, delimiters)
-``E1xx``  header block (profile-gated)
-``E2xx``  artifact kind vs location
-``E3xx``  declaration placement
-``E4xx``  artifact-specific restrictions (scans, columns, strategies)
-``E5xx``  asset class declarations
-``E6xx``  input documentation
-``E7xx``  identifiers (duplicates, collisions, unknown functions)
-``W0xx``  style
-``W1xx``  header honesty
-``W9xx``  unverified platform behaviour
+``E001``-``E006``  lexical / file hygiene (tabs, newlines, ``//``, delimiters)
+``E031``          declaration placement
+``E050``          asset class declarations
+``E070``-``E073``  identifiers (duplicates, collisions, unknown functions)
+``E101``-``W104``  header block and input documentation (profile-gated)
+``E120``          artifact kind vs location (profile-gated)
+``E401``-``W402``  artifact restrictions (scans, columns, strategies)
+``W001``, ``W002``  style
+``W050``          repaint honesty
+``W080``, ``W081``  naming (profile-gated)
+``W090``, ``W091``  unverified ``rec`` behaviour
+
+See ``docs/rules.md`` for the authoritative list.
 """
 
 from __future__ import annotations

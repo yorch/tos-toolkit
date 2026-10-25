@@ -5,9 +5,9 @@
 
 ## Context
 
-The tooling started life as `tools/*.py` inside one trading repository: a
-614-line linter, a scaffold script, a syntax checker, and a shell review wrapper.
-A second and third ThinkScript repository would each need a copy.
+The tooling started life as `tools/*.py` inside one private trading repository:
+a ~600-line linter, a scaffold script, a syntax checker, and a shell review
+wrapper. A second and third ThinkScript repository would each need a copy.
 
 Three ways to share it:
 
@@ -28,7 +28,7 @@ nothing.
 Ship `tos-toolkit` as a pip-installable package whose only entry point is the
 `tos` console script.
 
-Consumers do `pip install -e path/to/tos-toolkit` (or from git) and call
+Consumers do `pip install -e .` (or from git) and call
 `tos` from a `justfile`.
 
 ## Consequences

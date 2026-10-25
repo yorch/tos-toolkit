@@ -42,8 +42,9 @@ class Registry:
     def __init__(self, functions: list[FunctionInfo], constants: dict[str, list[str]]):
         self._functions = {f.name.lower(): f for f in functions}
         self._constants = {k: list(v) for k, v in constants.items()}
+        # Keyed and valued in lowercase: lookups are always case-insensitive.
         self._constant_lower = {
-            k: {v.lower() for v in values} for k, values in self._constants.items()
+            k.lower(): {v.lower() for v in values} for k, values in self._constants.items()
         }
 
     def function(self, name: str) -> FunctionInfo | None:
@@ -54,6 +55,9 @@ class Registry:
 
     def namespace_members(self, namespace: str) -> set[str]:
         return self._constant_lower.get(namespace.lower(), set())
+
+    def namespace_names(self) -> list[str]:
+        return [name for name in self._constants]
 
     def has_namespace(self, namespace: str) -> bool:
         return namespace.lower() in self._constant_lower

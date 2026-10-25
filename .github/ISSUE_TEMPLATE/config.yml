@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or usage help
+    url: https://github.com/yorch/tos-toolkit/discussions
+    about: Ask here rather than opening an issue.
+  - name: Security vulnerability
+    url: https://github.com/yorch/tos-toolkit/security/advisories/new
+    about: Please report security issues privately, not as a public issue.

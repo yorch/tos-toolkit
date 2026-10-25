@@ -21,8 +21,8 @@ thinkorswim anywhere in sight.
 ## Install
 
 ```console
-$ pip install -e path/to/tos-toolkit        # local
-$ pip install "tos-toolkit[parser]"                 # + grammar check support
+$ pip install -e .        # local
+$ pip install "tos-toolkit[parser]"                 # marks the grammar-check requirement
 ```
 
 Requires Python 3.11+. The core has **zero** Python dependencies.

@@ -25,13 +25,16 @@ dependencies = []
 # No Python dependencies are added; the extra exists so the requirement is
 # explicit and installable as `tos-toolkit[parser]`.
 parser = []
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "build>=1.2", "twine>=5"]
 
 [project.scripts]
 tos = "tos_toolkit.cli:main"
 
 [project.urls]
-Documentation = "https://github.com/brnby/tos-toolkit"
+Documentation = "https://yorch.github.io/tos-toolkit/"
+Homepage = "https://github.com/yorch/tos-toolkit"
+Repository = "https://github.com/yorch/tos-toolkit"
+Changelog = "https://github.com/yorch/tos-toolkit/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -42,7 +45,6 @@ tos_toolkit = [
     "data/profiles/*.toml",
     "prompts/*.md",
     "parser/java/*.java",
-    "scaffold/project/*",
     "scaffold/templates/*",
     "docs/**/*.md",
 ]

@@ -1,0 +1,93 @@
+name: Bug report
+description: A rule fired when it should not, missed when it should, or a command misbehaved.
+title: "[bug] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. The fastest possible fix comes from a **minimal
+        reproducing file** — a `.thinkscript` snippet of a few lines.
+
+        Please do not paste proprietary or account data. A synthetic study that
+        triggers the same rule is just as useful.
+
+  - type: input
+    id: version
+    attributes:
+      label: tos-toolkit version
+      description: Output of `tos --version`
+      placeholder: "tos 0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: python
+    attributes:
+      label: Python version and OS
+      placeholder: "3.12.4 on macOS 15.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: command
+    attributes:
+      label: Command
+      options:
+        - tos lint
+        - tos status
+        - tos syntax-check
+        - tos review
+        - tos new
+        - tos init
+        - tos docs
+        - tos explain
+        - other / installation
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: Include the diagnostic code (e.g. `E071`) and the message.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: |
+        Smallest `.thinkscript` content plus the exact command. For a config
+        problem, include the relevant `tos.toml`.
+      render: thinkscript
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant tos.toml
+      description: Only if a rule is being enabled or altered by configuration.
+      render: toml
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmations
+      options:
+        - label: I checked `tos docs` / `tos explain` before filing.
+          required: false
+        - label: This is not a security issue (those go through SECURITY.md).
+          required: true

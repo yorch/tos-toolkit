@@ -1,4 +1,4 @@
-# 0004 — No thinkorswim code is bundled or reverse engineered
+# 0004 — No thinkorswim code is bundled, decompiled, or reimplemented
 
 - **Status:** Accepted
 - **Date:** 2026-10-24
@@ -37,6 +37,10 @@ So a faithful reimplementation is a few weeks of work, not a research project.
 4. **Grammar validation is delegated to the user's own installation** through the
    reflection shim in `parser/java/Checker.java`. The shim contains no Schwab code
    and compiles against jars that already exist on the user's machine.
+5. **We say "inspected", not "clean room", where that is what happened.** The
+   token and rule *names* in `docs/knowledge-base/unverified-tokens.md` came from
+   reading a locally installed jar. Names are recorded as an unverified checklist;
+   no grammar, control flow, or implementation detail was transcribed.
 5. **Names may inform our own documentation.** Token names, rule names and
    function names are functional interface facts, not creative expression. They
    are used as a *completeness checklist* for the knowledge base, and anything
