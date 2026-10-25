@@ -1,2 +1,3 @@
-# Site build only. The package itself has zero runtime dependencies.
-mkdocs-material>=9.7.7,<10
+# Site build only. The shipped package keeps zero runtime dependencies.
+markdown>=3.6,<4
+pygments>=2.17,<3

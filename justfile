@@ -25,15 +25,14 @@ selfcheck: install
     @echo "selfcheck passed: templates clean, collision rejected"
     @rm -f /tmp/tos-selfcheck.thinkscript
 
-# Stage the knowledge base, then serve the docs site locally
-docs-serve:
-    @python3 scripts/sync_kb_docs.py
-    @mkdocs serve
+# Build the site, then serve site/ on http://localhost:8000
+docs-serve: docs-build
+    @python3 -m http.server --directory site 8000
 
-# Stage the knowledge base, then build the site strictly (CI parity)
+# Build the site and check links/structure (CI parity)
 docs-build:
-    @python3 scripts/sync_kb_docs.py
-    @mkdocs build --strict
+    @python3 scripts/build_site.py
+    @python3 scripts/check_site.py
 
 # Build the distribution and check metadata
 package:

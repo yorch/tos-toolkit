@@ -60,15 +60,24 @@ These are not style preferences; they are the project's reason to exist.
   shipped inside the package so `tos docs` works everywhere. It is staged into
   `docs/knowledge-base/` at build time — that copy is gitignored, never edit it.
 
-Build the site locally:
+The site is hand-built HTML/CSS/JS — no framework, no bundler, no CDN requests.
 
 ```console
-$ pip install -r docs/requirements.txt
-$ python scripts/sync_kb_docs.py
-$ mkdocs serve
+$ pip install -r docs/requirements.txt   # markdown + pygments, build-time only
+$ just docs-build                        # build and check
+$ just docs-serve                        # http://localhost:8000
 ```
 
-CI builds with `mkdocs build --strict`, so a broken internal link fails the build.
+- `scripts/build_site.py` renders `docs/**/*.md` into `site/`.
+- `scripts/check_site.py` fails on broken internal links or missing assets, and
+  runs in CI.
+- Design lives in `site-src/assets/` (CSS and vanilla JS) and
+  `site-src/templates/page.html`. Content stays in Markdown — do not hand-edit
+  `site/`, it is generated and gitignored.
+
+If you change the design, keep the constraints: no frameworks, no third-party
+network requests at runtime, no downloaded web fonts, and the site must stay
+usable with JavaScript disabled.
 
 ## Commits and PRs
 

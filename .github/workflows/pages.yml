@@ -6,7 +6,9 @@ on:
     paths:
       - "docs/**"
       - "src/tos_toolkit/docs/**"
-      - "mkdocs.yml"
+      - "site-src/**"
+      - "scripts/build_site.py"
+      - "scripts/check_site.py"
       - "scripts/sync_kb_docs.py"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
@@ -29,12 +31,12 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - name: Install docs tooling
+      - name: Install site build tooling
         run: python -m pip install -r docs/requirements.txt
-      - name: Stage the knowledge base
-        run: python scripts/sync_kb_docs.py
-      - name: Build site (strict, so broken links fail the build)
-        run: mkdocs build --strict
+      - name: Build the site
+        run: python scripts/build_site.py
+      - name: Check the generated site
+        run: python scripts/check_site.py
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:

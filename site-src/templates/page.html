@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>$title</title>
+<meta name="description" content="$description">
+<meta name="color-scheme" content="light dark">
+$canonical_link
+<link rel="icon" href="${root}assets/favicon.svg" type="image/svg+xml">
+<!-- Runs before first paint so a stored theme never flashes the wrong one. -->
+<script>(function(d){d.className="no-js";try{var t=localStorage.getItem("tos-theme");if(t==="light"||t==="dark")d.setAttribute("data-theme",t)}catch(e){}})(document.documentElement)</script>
+<link rel="stylesheet" href="${root}assets/style.css">
+<script src="${root}assets/app.js" defer></script>
+</head>
+<body class="$body_class" data-root="$root">
+<a class="skip" href="#main">Skip to content</a>
+<header class="masthead">
+  <a class="wordmark" href="${root}" aria-label="tos-toolkit home"><span class="wm-a">tos</span><span class="wm-b">toolkit</span></a>
+  <span class="rev" title="Package version">Rev.&nbsp;$version</span>
+  <div class="search" role="search">
+    <label for="q" class="sr-only">Search the documentation</label>
+    <input id="q" type="search" placeholder="Search — try E071" autocomplete="off" spellcheck="false"
+      role="combobox" aria-expanded="false" aria-controls="q-results" aria-autocomplete="list"
+      aria-describedby="q-help">
+    <kbd class="kbd-hint" aria-hidden="true">/</kbd>
+    <span id="q-help" class="sr-only">Press slash to focus. Arrow keys move through results, Enter opens, Escape closes.</span>
+    <ul id="q-results" role="listbox" aria-label="Search results" hidden></ul>
+    <span id="q-status" class="sr-only" aria-live="polite"></span>
+  </div>
+  <button class="theme-toggle no-js-hide" type="button" aria-label="Switch colour theme"><span class="theme-icon" aria-hidden="true"></span></button>
+  <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="sidebar">Contents</button>
+  <a class="repo" href="$repo" rel="external noopener">Source</a>
+</header>
+<div class="frame">
+  <nav id="sidebar" class="sidebar" aria-label="Documentation">$nav</nav>
+  <main id="main" tabindex="-1">
+    <article>
+$head
+$content
+    </article>
+$pager
+    <p class="page-source"><a href="$source" rel="external noopener">View this page's source</a></p>
+  </main>
+  <aside class="rail" aria-label="Page contents">$toc</aside>
+</div>
+<footer class="colophon">
+  <p>MIT licensed. Unofficial — not affiliated with, endorsed by, or supported by Charles Schwab or thinkorswim.</p>
+  <p>Set in your system's own typefaces. This site makes no third-party requests.</p>
+</footer>
+</body>
+</html>

@@ -10,12 +10,13 @@ permissions:
 
 jobs:
   release:
+    name: build and publish GitHub release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7  # pin to a SHA before relying on release integrity
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Install build tooling
@@ -28,13 +29,9 @@ jobs:
           tag="${GITHUB_REF_NAME#v}"
           # tomllib, not `import tos_toolkit`: the package is not installed yet
           # at this point in the job (src/ layout).
-          version="$(python - <<'PY'
-          import pathlib, tomllib
-          print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])
-          PY
-          )"
+          version="$(python -c 'import pathlib,tomllib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])')"
           if [ "$tag" != "$version" ]; then
-            echo "::error::tag v$tag does not match __version__ $version"
+            echo "::error::tag v$tag does not match project.version $version"
             exit 1
           fi
           echo "tag and version agree: $version"
@@ -46,6 +43,7 @@ jobs:
         run: python -m twine check dist/*
 
       - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -55,14 +53,49 @@ jobs:
             --generate-notes \
             --verify-tag
 
-      # PyPI publishing is intentionally not automated. To enable it:
-      #   1. add a PYPI_API_TOKEN repository secret
-      #   2. uncomment the step below
-      # Publishing is a deliberate human act for a package whose rules are
-      # still churning.
-      #
-      # - name: Publish to PyPI
-      #   if: startsWith(github.ref, 'refs/tags/v')
-      #   uses: pypa/gh-action-pypi-publish@release/v1
-      #   with:
-      #     password: ${{ secrets.PYPI_API_TOKEN }}
+      - uses: actions/upload-artifact@v5
+        with:
+          name: dist
+          path: dist/
+
+  # Trusted Publishing: no API token is stored anywhere. PyPI verifies this
+  # workflow via OIDC. Setup is documented in docs/publishing.md.
+  publish-testpypi:
+    name: publish to TestPyPI
+    needs: release
+    if: >-
+      startsWith(github.ref, 'refs/tags/v')
+      && vars.PUBLISH_TO_TESTPYPI == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/tos-toolkit
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  publish-pypi:
+    name: publish to PyPI
+    needs: release
+    if: >-
+      startsWith(github.ref, 'refs/tags/v')
+      && vars.PUBLISH_TO_PYPI == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/tos-toolkit
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
