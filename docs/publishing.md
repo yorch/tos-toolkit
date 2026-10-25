@@ -133,6 +133,55 @@ $ python -m twine upload --repository testpypi dist/*   # rehearse
 $ python -m twine upload dist/*                          # publish
 ```
 
+### When publishing fails: `invalid-publisher`
+
+This is the one failure you will hit, and it is almost always a form mismatch.
+PyPI issues a valid token and then refuses it because no publisher matches the
+claims GitHub sent. The claims are printed in the failed job log — copy them and
+compare field by field:
+
+```text
+sub             repo:yorch@60499/tos-toolkit@1433433744:environment:pypi
+repository      yorch/tos-toolkit
+workflow_ref    yorch/tos-toolkit/.github/workflows/release.yml@refs/tags/v0.1.0
+environment     pypi
+```
+
+The four fields that must match, in this order of how often they are wrong:
+
+| PyPI field | Must be | Common mistake |
+| --- | --- | --- |
+| Environment name | `pypi` | left **blank** — the form says "optional", but the workflow sets `environment: pypi`, so blank can never match |
+| Workflow name | `release.yml` | `.github/workflows/release.yml` (full path) or `release.yaml` |
+| Repository name | `tos-toolkit` | the owner name, or a fork |
+| PyPI project name | `tos-toolkit` | `tos_toolkit` |
+
+Also confirm you added it on **pypi.org**, not test.pypi.org — they are separate
+accounts and separate publishers.
+
+**Nothing was uploaded when this fails**, so the version is still free. Fix the
+form, then re-run only the failed jobs — no new tag needed, and the claims stay
+identical:
+
+```console
+$ gh run rerun <run-id> --failed
+```
+
+### If the form keeps refusing
+
+Publish once with an API token, which creates the project on PyPI; then attach a
+*normal* trusted publisher to the now-existing project (no "pending" matching
+involved):
+
+```console
+$ python -m build
+$ python -m twine check dist/*
+$ python -m twine upload dist/*        # PyPI token as password, user __token__
+```
+
+Then delete the token from your environment. From the next release onward the
+workflow publishes by OIDC.
+
 ### Things that will bite you
 
 - **The version must match the tag.** Enforced in CI.
