@@ -192,6 +192,7 @@ can do it.
 
 ## Documentation
 
+- [`docs/consuming.md`](docs/consuming.md) — adopting this from a new or existing project
 - [`docs/architecture.md`](docs/architecture.md) — module layout and the layering rule
 - [`docs/adr/`](docs/adr/) — decisions that are expensive to reverse
 - [`src/tos_toolkit/docs/knowledge-base/`](src/tos_toolkit/docs/knowledge-base/) — the ThinkScript reference (`tos docs`)
