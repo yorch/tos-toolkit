@@ -521,3 +521,20 @@ def test_empty_run_is_not_a_pass(tmp_path, monkeypatch):
     (tmp_path / "a.ts").write_text("plot x = close;\n")
     monkeypatch.chdir(tmp_path)
     assert main(["lint", "."]) == 2
+
+
+def test_kind_dir_dot_means_project_root(tmp_path):
+    from tos_toolkit.checks import Context, run_all
+    from tos_toolkit.config import Config
+    from tos_toolkit.registry import load as load_registry
+
+    path = tmp_path / "x.thinkscript"
+    body = 'AddLabel(yes, "x", Color.GRAY);\n'
+    path.write_text(body)
+    config = Config(root=tmp_path)
+    config.header_mode = "off"
+    config.kind_dirs = {"scan": "."}
+    ctx = Context(
+        path=path, root=tmp_path, text=body, config=config, registry=load_registry()
+    )
+    assert "E401" in codes(run_all(ctx))

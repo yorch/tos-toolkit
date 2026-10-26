@@ -9,7 +9,7 @@ Prefixes group by concern:
 | --- | --- | --- |
 | `E001`–`E006` | file and lexical hygiene | no |
 | `E031` | declaration placement | no, but needs a declared `@kind` |
-| `E050` | asset-class declarations | no, but needs a non-empty `@assets` |
+| `E050` | asset-class declarations | **yes** — it reads `@assets`, which only exists in a header |
 | `E070`–`E073` | identifiers | no |
 | `E101`–`W104` | header block | **yes** |
 | `E120`, `W080`, `W081` | artifact kind vs location, naming | **yes** |

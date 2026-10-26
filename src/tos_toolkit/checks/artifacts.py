@@ -28,11 +28,11 @@ def _kind_from_directory(ctx) -> str:
     if not parts:
         return ""
     best_kind = ""
-    best_len = 0
+    best_len = -1
     for kind, name in ctx.config.kind_dirs.items():
-        wanted = Path(name).parts
-        if not wanted:
-            continue
+        # "." (or "") means the project root: an empty prefix that still matches,
+        # but loses to any more specific directory.
+        wanted = () if str(name).strip() in {".", ""} else Path(name).parts
         if tuple(parts[: len(wanted)]) == wanted and len(wanted) > best_len:
             # A more specific directory wins: with study="src" and scan="src/scans",
             # a file in src/scans/ is a scan.

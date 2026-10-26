@@ -253,7 +253,28 @@ def _tool_lint(args: dict[str, Any], config: Config) -> tuple[str, bool]:
     for path in files:
         try:
             text = path.read_text(encoding="utf-8")
-        except (UnicodeDecodeError, OSError) as exc:
+        except UnicodeDecodeError:
+            # Same as the CLI: report it and keep going, so one malformed file
+            # does not discard the findings from the rest of the batch.
+            level = active.level("E006")
+            if level is Level.OFF:
+                continue
+            findings.append(
+                {
+                    "path": _display_path(path, active.root),
+                    "line": 0,
+                    "code": "E006",
+                    "severity": "error" if level is Level.ERROR else "warning",
+                    "message": "not valid UTF-8",
+                    "hint": None,
+                }
+            )
+            if level is Level.ERROR:
+                errors += 1
+            else:
+                warnings += 1
+            continue
+        except OSError as exc:
             raise ToolError(f"cannot read {path}: {exc}") from exc
         ctx = Context(path=path, root=active.root, text=text, config=active, registry=registry)
         for finding in run_all(ctx):

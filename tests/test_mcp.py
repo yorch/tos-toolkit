@@ -321,3 +321,24 @@ def test_scan_with_no_statements_reports_e403(tmp_path):
         filename="empty_scan.thinkscript",
     )
     assert "E403" in {f.code for f in run_all(ctx)}
+
+
+def test_undecodable_file_does_not_abort_the_batch(config, tmp_path):
+    """One bad encoding must not discard findings from the other files."""
+    bad = tmp_path / "bad.thinkscript"
+    bad.write_bytes(b"declare upper;\nplot A = \xff\xfe close;\n")
+    good = tmp_path / "good.thinkscript"
+    good.write_text(
+        "declare upper;\nrec pdHigh = 1;\nplot PdHigh = pdHigh;\n", encoding="utf-8"
+    )
+    response = mcp.handle(
+        call(
+            "tools/call",
+            {"name": "tos_lint", "arguments": {"paths": [str(tmp_path)], "profile": "loose"}},
+        ),
+        config,
+    )
+    payload = json.loads(response["result"]["content"][0]["text"])
+    found = {f["code"] for f in payload["findings"]}
+    assert "E006" in found
+    assert "E071" in found
