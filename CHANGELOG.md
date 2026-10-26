@@ -8,6 +8,16 @@ rule can turn a previously green build red. Pin a version in CI.
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-10-26
+
+### Fixed
+
+- `__version__` was a hand-maintained string and did not follow the
+  `pyproject.toml` bump, so the 0.2.0 wheel reported `0.1.0` from `tos --version`
+  and from the MCP `serverInfo` handshake. It is now read from the installed
+  distribution metadata, so it cannot drift again. 0.2.0 is burned on PyPI;
+  this is the corrected release.
+
 ## [0.2.0] — 2026-10-25
 
 ### Added
@@ -112,4 +122,5 @@ caught NaN-scale bugs in two studies before they shipped.
 
 [Unreleased]: https://github.com/yorch/tos-toolkit/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/yorch/tos-toolkit/compare/v0.1.0...v0.2.0
+[0.2.1]: https://github.com/yorch/tos-toolkit/compare/v0.2.0...v0.2.1
 [0.1.0]: https://github.com/yorch/tos-toolkit/releases/tag/v0.1.0

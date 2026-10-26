@@ -121,3 +121,23 @@ def test_kind_dirs_merges_rather_than_replaces(tmp_path, monkeypatch):
     # the rest must survive
     assert config.kind_dirs["scan"] == "scans"
     assert config.kind_dirs["column"] == "columns"
+
+
+def test_version_matches_pyproject():
+    """A version string that drifts from pyproject is a packaging bug.
+
+    0.2.0 shipped reporting 0.1.0 because __version__ was maintained by hand; it
+    now comes from installed metadata, and this guards the relationship.
+    """
+    import tomllib
+    from pathlib import Path
+
+    import tos_toolkit
+
+    pyproject = Path(__file__).resolve().parent.parent / "pyproject.toml"
+    declared = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["version"]
+    # An installed distribution reports its metadata version, which equals the
+    # declared one; a bare source checkout reports 0.0.0+source.
+    if tos_toolkit.__version__ == "0.0.0+source":
+        pytest.skip("running from an uninstalled source checkout")
+    assert tos_toolkit.__version__ == declared
