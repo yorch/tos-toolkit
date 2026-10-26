@@ -18,6 +18,7 @@ $ tos lint                    # configured targets
 $ tos lint studies/ --strict  # warnings become failures
 $ tos lint --json             # machine-readable
 $ tos lint --quiet            # suppress the summary line
+$ tos lint --allow-empty      # succeed even if no files were checked
 ```
 
 | Exit | Meaning |
@@ -28,6 +29,12 @@ $ tos lint --quiet            # suppress the summary line
 
 A path that does not exist exits 2 rather than silently checking zero files — a
 typo in a pre-commit hook must not pass.
+
+**An empty run is also a failure.** If the run checked zero files — no configured
+targets, or a directory with no `.thinkscript` files — the exit code is 2 and the
+JSON says `"ok": false`. A gate that silently checks nothing is indistinguishable
+from a passing one. Pass `--allow-empty` when an empty tree is genuinely expected,
+such as a freshly scaffolded project before its first script.
 
 `--json` emits:
 

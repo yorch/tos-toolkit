@@ -21,8 +21,26 @@ rule can turn a previously green build red. Pin a version in CI.
   emits inline `file:line` annotations, and publishes `errors`, `warnings` and the
   findings JSON as outputs and an artifact.
 - `docs/agents.md` — the three integration paths, with the limits spelled out.
-- `tos lint --json` now reports `ok`, `error_count`, `warning_count` and
-  `files_checked` alongside the findings.
+- `tos lint --json` now reports `ok`, `targets_found`, `error_count`,
+  `warning_count` and `files_checked` alongside the findings.
+- `tos lint --allow-empty` for a freshly scaffolded project.
+
+### Fixed
+
+- An empty run no longer reports success. Zero files checked (no targets, or no
+  `.thinkscript` files) exits 2 with `"ok": false`, because a gate that silently
+  checks nothing is indistinguishable from a passing one.
+- Artifact restrictions now infer the kind from the configured directory when a
+  file has no `@kind`, so `loose` on a headerless corpus still catches a scan
+  calling `AddLabel`.
+- MCP: a profile override no longer discards an explicit `--config`; stray `.ts`
+  files are reported as `E005` instead of being silently dropped; malformed
+  `params` or `name` return `INVALID_PARAMS` instead of killing the server; and
+  notifications never receive a response.
+- `[project] targets` must be an array of strings; a bare string used to become
+  one target per character.
+- Action: capture lint failure explicitly (GitHub runs composite bash with `-e`),
+  add an `artifact-name` input, and use a supported branding colour.
 
 ## [0.1.0]
 

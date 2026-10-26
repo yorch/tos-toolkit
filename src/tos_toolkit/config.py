@@ -146,7 +146,15 @@ def load(config_path: Path | None = None, profile: str | None = None) -> Config:
     for section in (profile_data, data):
         project = section.get("project", {})
         if "targets" in project:
-            config.targets = list(project["targets"])
+            raw_targets = project["targets"]
+            if not isinstance(raw_targets, list) or not all(
+                isinstance(item, str) for item in raw_targets
+            ):
+                raise ConfigError(
+                    "[project] targets must be an array of strings, e.g. "
+                    'targets = ["studies", "scans"]'
+                )
+            config.targets = list(raw_targets)
         if "kind_dirs" in project:
             # Merge: a project overriding one directory must not drop the others.
             config.kind_dirs.update(

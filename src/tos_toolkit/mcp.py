@@ -229,8 +229,16 @@ def _walk_targets(config: Config, paths: list[str]) -> list:
 def _tool_lint(args: dict[str, Any], config: Config) -> tuple[str, bool]:
     active = _config_for(config, args)
     registry = load_registry()
-    files = _walk_targets(active, list(args.get("paths") or []))
-    stray = _stray_for(active, list(args.get("paths") or []))
+    paths = list(args.get("paths") or [])
+    stray = _stray_for(active, paths)
+    try:
+        files = _walk_targets(active, paths)
+    except ToolError:
+        # A directory containing only .ts files is not an operational failure:
+        # E005 findings are the answer. Only re-raise when there is nothing to say.
+        if not stray:
+            raise
+        files = []
 
     findings: list[dict[str, Any]] = []
     errors = warnings = 0
@@ -422,6 +430,10 @@ def handle(request: dict[str, Any], config: Config) -> dict[str, Any] | None:
         # A malformed params value must be an error response, not an exception
         # that unwinds serve() and drops the client.
         return _error(request_id, INVALID_PARAMS, "'params' must be an object")
+    if is_notification:
+        # JSON-RPC: a notification never gets a response, including for ping or
+        # an unknown method. We have no server-initiated work to do here.
+        return None
 
     if method == "initialize":
         requested = params.get("protocolVersion")

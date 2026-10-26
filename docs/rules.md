@@ -148,6 +148,11 @@ ThinkScript identifiers are.
 `E403` checks that the last statement is a `plot`; it does not attempt to prove
 the expression is boolean-comparison shaped.
 
+**These do not require a header.** If a file has no `@kind`, the kind is inferred
+from the configured directory, so a headerless `scans/foo.thinkscript` that calls
+`AddLabel` still gets `E401`. Platform restrictions are not house style, and the
+`loose` profile does not weaken them.
+
 ---
 
 ## Style and unverified behaviour (always on)

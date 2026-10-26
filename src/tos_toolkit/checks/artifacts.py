@@ -16,8 +16,24 @@ COLUMN_ALLOWED = {"addlabel", "assignbackgroundcolor"}
 CHART_ONLY_LOWER = {name.lower() for name in CHART_ONLY}
 
 
+def _kind_from_directory(ctx) -> str:
+    """The artifact kind implied by the directory a file lives in."""
+    directory = ctx.config.kind_dirs  # kind -> directory
+    parts = ctx.rel.parts
+    if not parts:
+        return ""
+    for kind, name in directory.items():
+        if parts[0] == name:
+            return kind
+    return ""
+
+
 def check(ctx) -> list[Finding]:
-    kind = ctx.header.get("kind", "").strip().lower()
+    # Platform restrictions are not house style: a scan cannot call AddLabel
+    # whether or not the file bothers to declare @kind. Fall back to the
+    # directory when the header is absent, so `loose` on a headerless corpus
+    # still catches these.
+    kind = ctx.header.get("kind", "").strip().lower() or _kind_from_directory(ctx)
     if not kind:
         return []
     out: list[Finding] = []

@@ -7,7 +7,7 @@ description: >-
 author: yorch
 branding:
   icon: check-circle
-  color: teal
+  color: green
 
 inputs:
   paths:
@@ -40,6 +40,12 @@ inputs:
     description: Python version used to run the linter.
     required: false
     default: "3.12"
+  artifact-name:
+    description: >-
+      Name for the uploaded findings artifact. Two invocations in one workflow
+      run need distinct names, or the upload conflicts.
+    required: false
+    default: tos-lint-findings
 
 outputs:
   errors:
@@ -114,7 +120,7 @@ runs:
       if: always()
       uses: actions/upload-artifact@v5
       with:
-        name: tos-lint-findings
+        name: ${{ inputs.artifact-name }}
         path: findings.json
         if-no-files-found: ignore
         retention-days: 7

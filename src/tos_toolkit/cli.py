@@ -54,6 +54,14 @@ def _build_parser() -> argparse.ArgumentParser:
     lint.add_argument("--strict", action="store_true", help="treat warnings as errors")
     lint.add_argument("--json", action="store_true", help="machine-readable output")
     lint.add_argument("--quiet", action="store_true", help="print findings only")
+    lint.add_argument(
+        "--allow-empty",
+        action="store_true",
+        help=(
+            "succeed when no files were checked. Off by default: a gate that "
+            "silently checks nothing is indistinguishable from a passing one."
+        ),
+    )
 
     status = subparsers.add_parser("status", help="report validation debt (@status)")
     status.add_argument("paths", nargs="*")
@@ -161,13 +169,14 @@ def _cmd_lint(args, config) -> int:
             "No target directories found. Run `tos init` or pass paths explicitly."
         )
         print(message, file=sys.stderr)
+        ok = bool(args.allow_empty)
         if args.json:
-            # Consumers parse this; an empty stdout is invalid JSON, and a gate
-            # that receives no JSON cannot tell "clean" from "nothing ran".
+            # Consumers parse this; empty stdout is invalid JSON, and a gate that
+            # receives no JSON cannot tell "clean" from "nothing ran".
             print(
                 json.dumps(
                     {
-                        "ok": True,
+                        "ok": ok,
                         "targets_found": False,
                         "error_count": 0,
                         "warning_count": 0,
@@ -178,7 +187,7 @@ def _cmd_lint(args, config) -> int:
                     indent=2,
                 )
             )
-        return 0
+        return 0 if ok else 2
 
     try:
         files, stray = _walk(targets, config.root, strict_paths=bool(args.paths))
@@ -225,6 +234,14 @@ def _cmd_lint(args, config) -> int:
         report.files_checked += 1
         report.extend(run_all(ctx))
 
+    empty = report.files_checked == 0 and not stray
+    if empty and not args.allow_empty:
+        message = (
+            "no .thinkscript files were checked; refusing to report success "
+            "(pass --allow-empty if that is expected)"
+        )
+        print(message, file=sys.stderr)
+
     if args.json:
         payload = [
             {
@@ -240,7 +257,9 @@ def _cmd_lint(args, config) -> int:
         print(
             json.dumps(
                 {
-                    "ok": not report.errors and not (args.strict and report.warnings),
+                    "ok": (not empty or bool(args.allow_empty))
+                    and not report.errors
+                    and not (args.strict and report.warnings),
                     "targets_found": True,
                     "error_count": len(report.errors),
                     "warning_count": len(report.warnings),
@@ -262,6 +281,8 @@ def _cmd_lint(args, config) -> int:
         return 1
     if args.strict and report.warnings:
         return 1
+    if empty and not args.allow_empty:
+        return 2
     return 0
 
 
