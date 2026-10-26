@@ -46,7 +46,9 @@ def check(ctx) -> list[Finding]:
     # whether or not the file bothers to declare @kind. Fall back to the
     # directory when the header is absent, so `loose` on a headerless corpus
     # still catches these.
-    kind = ctx.header.get("kind", "").strip().lower() or _kind_from_directory(ctx)
+    declared = ctx.header.get("kind", "").strip().lower()
+    # Only trust a kind we know; "# @kind: scna" must not disable every check.
+    kind = declared if declared in ctx.config.kind_dirs else _kind_from_directory(ctx)
     if not kind:
         return []
     out: list[Finding] = []
@@ -111,13 +113,10 @@ def _scan(ctx) -> list[Finding]:
     if len(plots) > 1:
         out.append(
             ctx.finding(
-                "W403",
+                "E406",
                 plots[1].start_line,
-                f"scan has {len(plots)} plots; a scan filter is expected to expose one",
-                hint=(
-                    "Schwab's scanner documentation describes a single plot per "
-                    "filter. Unverified here, so this is a warning: paste-test it."
-                ),
+                f"scan has {len(plots)} plots; a stock-hacker filter requires exactly one",
+                hint="Schwab's scanner documentation specifies a single plot per filter.",
             )
         )
 
@@ -169,8 +168,20 @@ def _column(ctx) -> list[Finding]:
             )
         )
     plots = [s for s in ctx.statements if s.keyword == "plot"]
-    if not plots:
-        out.append(ctx.finding("E404", ctx.first_code_line or 1, "a column needs exactly one 'plot'"))
+    has_label = any(
+        token.kind is Kind.IDENT and token.lower == "addlabel"
+        for statement in ctx.statements
+        for token in statement.tokens
+    )
+    if not plots and not has_label:
+        # Custom quotes support label-only output, so a plot is not the only form.
+        out.append(
+            ctx.finding(
+                "E404",
+                ctx.first_code_line or 1,
+                "a column needs an output: a 'plot' value or an AddLabel",
+            )
+        )
     elif len(plots) > 1:
         out.append(
             ctx.finding(

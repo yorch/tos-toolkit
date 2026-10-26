@@ -333,7 +333,10 @@ def _tool_explain(args: dict[str, Any], config: Config) -> tuple[str, bool]:
         namespace, member = name.split(".", 1)
         if registry.has_namespace(namespace):
             if member.lower() in registry.namespace_members(namespace):
-                return f"{name}: valid {namespace} member", False
+                return (
+                    f"{name}: listed as a {namespace} member in the registry.\n"
+                    "Membership is curated, not authoritative — confirm in the platform."
+                ), False
             known = ", ".join(sorted(registry.namespace_members(namespace)))
             return f"{name}: NOT a known {namespace} member\n  known: {known}", False
 

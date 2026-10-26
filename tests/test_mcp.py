@@ -77,7 +77,9 @@ def test_explain_constant_member(config):
         call("tools/call", {"name": "tos_explain", "arguments": {"name": "Color.LIGHT_RED"}}),
         config,
     )
-    assert "valid Color member" in response["result"]["content"][0]["text"]
+    text = response["result"]["content"][0]["text"]
+    assert "listed as a Color member" in text
+    assert "curated, not authoritative" in text
 
 
 def test_docs_lists_topics(config):

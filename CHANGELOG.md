@@ -41,6 +41,16 @@ rule can turn a previously green build red. Pin a version in CI.
   one target per character.
 - Action: capture lint failure explicitly (GitHub runs composite bash with `-e`),
   add an `artifact-name` input, and use a supported branding colour.
+- Artifact kind is inferred from the configured directory when a file has no
+  `@kind`, when the declared kind is unrecognised, and for nested configurations
+  like `kind_dirs = { scan = "src/scans" }` (longest prefix wins) and `"."` (root).
+- `E406` — a scan exposing more than one plot. Schwab's scanner specifies one.
+- A watchlist column may output an `AddLabel` instead of a `plot`; `E404` now only
+  fires when a column has no output at all.
+- `tos_explain` reports registry membership rather than asserting validity, and
+  three unverified constants were removed from the registry
+  (`Alert.ONCE_PER_BAR`, `PaintingStrategy.NUMBER`, `PaintingStrategy.LINE_VS_PREV`).
+- `tos syntax-check` exits 2 when it checked nothing, like `lint`.
 
 ## [0.1.0]
 

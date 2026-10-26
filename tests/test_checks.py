@@ -503,12 +503,33 @@ def test_longest_kind_directory_wins(tmp_path):
     assert "E401" in codes(run_all(ctx))
 
 
-def test_scan_with_multiple_plots_warns(tmp_path):
+def test_scan_with_multiple_plots_is_an_error(tmp_path):
+    """A stock-hacker filter requires exactly one plot."""
     text = SCAN.replace(
         "plot Scan = close > avg;", "plot Scan = close > avg;\nplot Other = close < avg;"
     )
     findings = _findings(tmp_path, text, subdir="scans", filename="sample_scan.thinkscript")
-    assert "W403" in codes(findings)
+    multi = [f for f in findings if f.code == "E406"]
+    assert multi and multi[0].is_error
+
+
+def test_column_may_output_a_label_instead_of_a_plot(tmp_path):
+    """Custom quotes support formatted label output."""
+    text = COLUMN.replace("plot Value = close - avg;", 'AddLabel(yes, "probe", Color.GRAY);')
+    findings = _findings(tmp_path, text, subdir="columns", filename="sample_col.thinkscript")
+    assert "E404" not in codes(findings)
+
+
+def test_unrecognised_header_kind_falls_back_to_directory(tmp_path):
+    """'# @kind: scna' must not disable every artifact check."""
+    text = SCAN.replace("# @kind: scan", "# @kind: scna").replace(
+        "plot Scan = close > avg;",
+        'AddLabel(yes, "x", Color.GRAY);\nplot Scan = close > avg;',
+    )
+    findings = _findings(
+        tmp_path, text, profile="loose", subdir="scans", filename="sample_scan.thinkscript"
+    )
+    assert "E401" in codes(findings), codes(findings)
 
 
 def test_empty_run_is_not_a_pass(tmp_path, monkeypatch):

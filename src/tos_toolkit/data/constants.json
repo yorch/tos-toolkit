@@ -21,10 +21,10 @@
     "PaintingStrategy": [
       "ARROW_DOWN", "ARROW_UP", "BOOLEAN_ARROW_DOWN", "BOOLEAN_ARROW_UP",
       "BOOLEAN_POINTS", "BOOLEAN_WEDGE_DOWN", "BOOLEAN_WEDGE_UP", "CROSS",
-      "HISTOGRAM", "LINE", "LINE_VS_PREV", "NUMBER", "SQUARED_HISTOGRAM",
+      "HISTOGRAM", "LINE", "SQUARED_HISTOGRAM",
       "VALUES_ABOVE", "VALUES_BELOW"
     ],
-    "Alert": ["BAR", "ONCE", "ONCE_PER_BAR", "TICK"],
+    "Alert": ["BAR", "ONCE", "TICK"],
     "Sound": ["BELL", "CHIMES", "DING", "NO_SOUND", "RING"]
   }
 }
