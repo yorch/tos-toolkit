@@ -57,6 +57,9 @@ class ConfigError(Exception):
 @dataclass
 class Config:
     root: Path
+    # The file this config came from, if any. A profile override must re-resolve
+    # against it, not against whatever tos.toml happens to be above the cwd.
+    config_path: Path | None = None
     profile: str = "strict"
     # project
     targets: list[str] = field(
@@ -138,7 +141,7 @@ def load(config_path: Path | None = None, profile: str | None = None) -> Config:
     profile_name = profile or data.get("profile", {}).get("name", "strict")
     profile_data = load_profile(profile_name)
 
-    config = Config(root=root, profile=profile_name)
+    config = Config(root=root, profile=profile_name, config_path=path)
 
     for section in (profile_data, data):
         project = section.get("project", {})

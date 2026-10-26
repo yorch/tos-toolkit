@@ -92,10 +92,13 @@ runs:
           args+=(--strict)
         fi
 
+        # GitHub runs `bash -eo pipefail` for composite steps, and `set -uo`
+        # does not turn -e off. Capture the failure explicitly or the step exits
+        # here and never reports annotations or outputs.
+        status=0
         # Word splitting is intended: `paths` may hold several entries.
         # shellcheck disable=SC2086
-        tos --profile "${TOS_PROFILE}" lint ${TOS_PATHS} "${args[@]}" > findings.json
-        status=$?
+        tos --profile "${TOS_PROFILE}" lint ${TOS_PATHS} "${args[@]}" > findings.json || status=$?
 
         if [ "${TOS_ANNOTATIONS}" = "true" ]; then
           python "${ANNOTATE}" findings.json || true

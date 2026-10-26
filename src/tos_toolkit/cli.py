@@ -157,10 +157,27 @@ def _cmd_lint(args, config) -> int:
         if (config.root / target).exists()
     ]
     if not targets:
-        print(
-            "No target directories found. Run `tos init` or pass paths explicitly.",
-            file=sys.stderr,
+        message = (
+            "No target directories found. Run `tos init` or pass paths explicitly."
         )
+        print(message, file=sys.stderr)
+        if args.json:
+            # Consumers parse this; an empty stdout is invalid JSON, and a gate
+            # that receives no JSON cannot tell "clean" from "nothing ran".
+            print(
+                json.dumps(
+                    {
+                        "ok": True,
+                        "targets_found": False,
+                        "error_count": 0,
+                        "warning_count": 0,
+                        "files_checked": 0,
+                        "findings": [],
+                        "summary": message,
+                    },
+                    indent=2,
+                )
+            )
         return 0
 
     try:
@@ -224,6 +241,7 @@ def _cmd_lint(args, config) -> int:
             json.dumps(
                 {
                     "ok": not report.errors and not (args.strict and report.warnings),
+                    "targets_found": True,
                     "error_count": len(report.errors),
                     "warning_count": len(report.warnings),
                     "files_checked": report.files_checked,

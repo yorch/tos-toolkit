@@ -8,7 +8,7 @@ Three patterns, in order of how much you want to commit to.
 
 ```console
 $ mkdir my-tos-scripts && cd my-tos-scripts && git init
-$ pip install -e .
+$ pipx install tos-toolkit
 $ tos init
 $ tos new study trend/ema_cloud_flip
 $ just lint
@@ -41,7 +41,7 @@ get value.
 
 ```console
 $ cd existing-repo
-$ pip install -e .
+$ pipx install tos-toolkit
 $ tos init                    # skips files that already exist
 ```
 
@@ -120,9 +120,9 @@ Missing paths exit 2, so a typo in the hook cannot silently pass.
 
 | Approach | Command | When |
 | --- | --- | --- |
-| Editable local install | `pip install -e .` | developing the toolkit and the consumer together |
-| PyPI | `pip install tos-toolkit==0.1.0` | pinned, reproducible — preferred |
-| Git | `pip install git+https://github.com/yorch/tos-toolkit@v0.1.0` | testing an unreleased commit |
+| Editable local checkout | `pip install -e /path/to/tos-toolkit` | developing the toolkit and a consumer together (clone the toolkit first) |
+| PyPI | `pip install tos-toolkit==0.2.0` | pinned, reproducible — preferred |
+| Git | `pip install git+https://github.com/yorch/tos-toolkit@v0.2.0` | testing an unreleased commit |
 
 Prefer a version pin over a floating branch: `tos lint` output is gate input, and
 a rule change can flip a green build to red.

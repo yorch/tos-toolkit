@@ -25,7 +25,8 @@ $ pipx run --spec "git+https://github.com/yorch/tos-toolkit" tos lint   # one-of
 
 ```console
 $ uv tool install "git+https://github.com/yorch/tos-toolkit"
-$ uvx --from "git+https://github.com/yorch/tos-toolkit" tos --version   # ephemeral
+$ uvx --from tos-toolkit tos --version          # ephemeral, from PyPI
+$ uvx --from "git+https://github.com/yorch/tos-toolkit" tos --version  # from git
 $ uv tool upgrade tos-toolkit
 ```
 
@@ -48,7 +49,7 @@ toolkit itself.
 $ pipx install tos-toolkit
 $ uv tool install tos-toolkit
 $ pip install tos-toolkit
-$ uvx tos lint                # run without installing
+$ uvx --from tos-toolkit tos lint   # run without installing
 ```
 
 Published: <https://pypi.org/project/tos-toolkit/> — `0.1.0`, MIT, no runtime

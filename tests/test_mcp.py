@@ -189,3 +189,55 @@ def test_serve_reports_parse_errors_without_dying(config):
     responses = [json.loads(line) for line in stdout.getvalue().splitlines() if line.strip()]
     assert responses[0]["error"]["code"] == mcp.PARSE_ERROR
     assert responses[1]["result"] == {}
+
+
+# --------------------------------------------------------------------------
+# regressions from the adversarial review of the MCP server
+
+
+def test_stray_ts_file_is_reported(config, tmp_path):
+    """The CLI flags a .ts file as E005; MCP must not silently pass it."""
+    (tmp_path / "a.thinkscript").write_text("declare upper;\nplot A = close;\n")
+    (tmp_path / "stray.ts").write_text("plot x = close;\n")
+    response = mcp.handle(
+        call(
+            "tools/call",
+            {"name": "tos_lint", "arguments": {"paths": [str(tmp_path)], "profile": "loose"}},
+        ),
+        config,
+    )
+    payload = json.loads(response["result"]["content"][0]["text"])
+    assert "E005" in {f["code"] for f in payload["findings"]}
+    assert payload["ok"] is False
+
+
+def test_profile_override_keeps_the_loaded_config_file(tmp_path):
+    """--config must not be discarded when a tool passes a profile."""
+    from tos_toolkit.config import load
+
+    project = tmp_path / "proj"
+    project.mkdir()
+    (project / "tos.toml").write_text(
+        '[profile]\nname = "strict"\n\n[checks]\nunknown_functions = "error"\n',
+        encoding="utf-8",
+    )
+    base = load(config_path=project / "tos.toml")
+    assert base.level("unknown_functions") is not None
+
+    overridden = mcp._config_for(base, {"profile": "loose"})
+    # The file's own rule override must survive the profile change.
+    from tos_toolkit.diagnostics import Level
+
+    assert overridden.rules.get("unknown_functions") is Level.ERROR
+
+
+def test_non_object_params_do_not_kill_the_server(config):
+    response = mcp.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": ["bad"]}, config)
+    assert response["error"]["code"] == mcp.INVALID_PARAMS
+
+
+def test_non_string_tool_name_is_invalid_params(config):
+    response = mcp.handle(
+        call("tools/call", {"name": [], "arguments": {}}), config
+    )
+    assert response["error"]["code"] == mcp.INVALID_PARAMS

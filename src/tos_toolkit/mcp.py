@@ -29,6 +29,7 @@ from typing import Any, Callable
 from . import __version__
 from .checks import Context, run_all
 from .config import Config, ConfigError, load as load_config
+from .diagnostics import Level
 from .registry import load as load_registry
 
 SERVER_NAME = "tos-toolkit"
@@ -159,19 +160,44 @@ TOOLS: list[dict[str, Any]] = [
 
 
 def _config_for(base: Config, args: dict[str, Any], profile: str | None = None) -> Config:
+    """Resolve a profile override against the SAME tos.toml the CLI loaded.
+
+    Re-discovering from the working directory would silently drop an explicit
+    --config, which changes which rules are enabled and can flip a failing lint
+    into a passing one.
+    """
     profile_name = args.get("profile") or profile
     if not profile_name:
         return base
     try:
-        resolved = load_config(config_path=None, profile=profile_name)
+        return load_config(config_path=base.config_path, profile=profile_name)
     except ConfigError as exc:
         raise ToolError(str(exc)) from exc
-    # Project paths and parser settings stay; only the rule surface changes.
-    resolved.root = base.root
-    resolved.targets = base.targets
-    resolved.tos_path = base.tos_path
-    resolved.parser_enabled = base.parser_enabled
-    return resolved
+
+
+def _display_path(path, root) -> str:
+    try:
+        return str(path.resolve().relative_to(root.resolve()))
+    except ValueError:
+        return str(path)
+
+
+def _stray_for(config: Config, paths: list[str]) -> list:
+    """The .ts files a lint run should report, resolved the same way as targets."""
+    from .cli import _walk
+
+    targets = paths or [
+        str(config.root / target)
+        for target in config.targets
+        if (config.root / target).exists()
+    ]
+    if not targets:
+        return []
+    try:
+        _files, stray = _walk(targets, config.root, strict_paths=False)
+    except SystemExit:
+        return []
+    return stray
 
 
 def _walk_targets(config: Config, paths: list[str]) -> list:
@@ -204,9 +230,29 @@ def _tool_lint(args: dict[str, Any], config: Config) -> tuple[str, bool]:
     active = _config_for(config, args)
     registry = load_registry()
     files = _walk_targets(active, list(args.get("paths") or []))
+    stray = _stray_for(active, list(args.get("paths") or []))
 
     findings: list[dict[str, Any]] = []
     errors = warnings = 0
+
+    # A .ts file collides with TypeScript and is an error in the CLI; dropping it
+    # here would make the same tree pass over MCP and fail in CI.
+    stray_level = active.level("E005")
+    if stray_level is not Level.OFF:
+        for path in stray:
+            finding = {
+                "path": _display_path(path, active.root),
+                "line": 0,
+                "code": "E005",
+                "severity": "error" if stray_level is Level.ERROR else "warning",
+                "message": f"'{path.name}' collides with TypeScript; rename to .thinkscript",
+                "hint": None,
+            }
+            findings.append(finding)
+            if finding["severity"] == "error":
+                errors += 1
+            else:
+                warnings += 1
     for path in files:
         try:
             text = path.read_text(encoding="utf-8")
@@ -369,7 +415,13 @@ def handle(request: dict[str, Any], config: Config) -> dict[str, Any] | None:
         return _error(request_id, INVALID_REQUEST, "missing 'method'")
 
     is_notification = "id" not in request
-    params = request.get("params") or {}
+    params = request.get("params")
+    if params is None:
+        params = {}
+    if not isinstance(params, dict):
+        # A malformed params value must be an error response, not an exception
+        # that unwinds serve() and drops the client.
+        return _error(request_id, INVALID_PARAMS, "'params' must be an object")
 
     if method == "initialize":
         requested = params.get("protocolVersion")
@@ -401,7 +453,11 @@ def handle(request: dict[str, Any], config: Config) -> dict[str, Any] | None:
 
     if method == "tools/call":
         name = params.get("name")
-        arguments = params.get("arguments") or {}
+        if not isinstance(name, str) or not name:
+            return _error(request_id, INVALID_PARAMS, "'name' must be a non-empty string")
+        arguments = params.get("arguments")
+        if arguments is None:
+            arguments = {}
         handler = HANDLERS.get(name)
         if handler is None:
             return _error(request_id, INVALID_PARAMS, f"unknown tool {name!r}")
@@ -411,6 +467,12 @@ def handle(request: dict[str, Any], config: Config) -> dict[str, Any] | None:
             body, is_error = handler(arguments, config)
         except ToolError as exc:
             return _result(request_id, _text(str(exc), is_error=True))
+        except SystemExit:
+            # A CLI helper called exit(); the server must not.
+            return _result(
+                request_id,
+                _text(f"{name} aborted while handling the request", is_error=True),
+            )
         except Exception as exc:  # noqa: BLE001 - never kill the server loop
             print(f"tos mcp: tool {name} failed: {exc}", file=sys.stderr)
             return _result(
