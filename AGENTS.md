@@ -46,6 +46,7 @@ src/tos_toolkit/
 ├── checks/           language.py (generic), header.py, artifacts.py, layout.py
 ├── parser/           optional ToS jar bridge + Checker.java
 ├── review.py         adversarial review harness
+├── mcp.py            Model Context Protocol server (stdio)
 ├── scaffold/         templates + files written by `tos init`
 ├── docs/             knowledge base, shipped as package data
 └── data/             functions.json, constants.json, profiles/*.toml

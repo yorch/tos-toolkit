@@ -16,6 +16,10 @@ $ tos review --mode diff    # adversarial AI review of your changes
 Everything except `syntax-check` runs on a bare Python install with no
 thinkorswim anywhere.
 
+It also speaks **MCP**, so a coding assistant calls `tos_lint`, `tos_explain`
+and `tos_docs` as native tools instead of shelling out — see
+[Agents and CI](agents.md).
+
 ---
 
 ## What problem it solves
@@ -33,10 +37,11 @@ file can be wrong before it ever reaches the platform.
 ## Install
 
 ```console
-$ pip install "git+https://github.com/yorch/tos-toolkit"
+$ pipx install tos-toolkit     # or: uv tool install tos-toolkit
+$ pip install tos-toolkit
 ```
 
-Not on PyPI yet; publish is a deliberate manual step.
+Published on [PyPI](https://pypi.org/project/tos-toolkit/).
 
 Requires Python 3.11+. The core has **zero** Python dependencies.
 

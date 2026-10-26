@@ -1,0 +1,117 @@
+name: tos-toolkit lint
+description: >-
+  Static analysis for ThinkScript (.thinkscript) files. Catches the failures
+  that otherwise only appear when you paste a study into thinkorswim:
+  case-insensitive identifier collisions, `//` used as a comment, chart-only
+  functions inside scans, unknown function names, and broken header metadata.
+author: yorch
+branding:
+  icon: check-circle
+  color: teal
+
+inputs:
+  paths:
+    description: Files or directories to check, space separated.
+    required: false
+    default: "."
+  profile:
+    description: >-
+      strict enforces house conventions (header block, @status lifecycle, layout).
+      loose keeps only language rules - use it on a corpus that never adopted
+      those conventions.
+    required: false
+    default: strict
+  version:
+    description: >-
+      tos-toolkit version to install, e.g. "0.1.0". Use "latest" to float.
+      Pin it: a new lint rule can turn a previously green build red.
+    required: false
+    default: latest
+  strict:
+    description: Treat warnings as failures.
+    required: false
+    default: "false"
+  annotations:
+    description: >-
+      Emit GitHub annotations (inline file:line markers) in addition to the log.
+    required: false
+    default: "true"
+  python-version:
+    description: Python version used to run the linter.
+    required: false
+    default: "3.12"
+
+outputs:
+  errors:
+    description: Number of error-level findings.
+    value: ${{ steps.lint.outputs.errors }}
+  warnings:
+    description: Number of warning-level findings.
+    value: ${{ steps.lint.outputs.warnings }}
+  json:
+    description: Path to the machine-readable findings file.
+    value: ${{ steps.lint.outputs.json }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install tos-toolkit
+      shell: bash
+      env:
+        TOS_VERSION: ${{ inputs.version }}
+      run: |
+        set -eu
+        if [ "$TOS_VERSION" = "latest" ]; then
+          spec="tos-toolkit"
+        else
+          spec="tos-toolkit==${TOS_VERSION}"
+        fi
+        echo "installing $spec"
+        python -m pip install --disable-pip-version-check --quiet "$spec"
+        tos --version
+
+    - name: Lint ThinkScript
+      id: lint
+      shell: bash
+      env:
+        TOS_PATHS: ${{ inputs.paths }}
+        TOS_PROFILE: ${{ inputs.profile }}
+        TOS_STRICT: ${{ inputs.strict }}
+        TOS_ANNOTATIONS: ${{ inputs.annotations }}
+        ANNOTATE: ${{ github.action_path }}/annotate.py
+      run: |
+        set -uo pipefail
+
+        args=(--json)
+        if [ "${TOS_STRICT}" = "true" ]; then
+          args+=(--strict)
+        fi
+
+        # Word splitting is intended: `paths` may hold several entries.
+        # shellcheck disable=SC2086
+        tos --profile "${TOS_PROFILE}" lint ${TOS_PATHS} "${args[@]}" > findings.json
+        status=$?
+
+        if [ "${TOS_ANNOTATIONS}" = "true" ]; then
+          python "${ANNOTATE}" findings.json || true
+        else
+          python "${ANNOTATE}" --plain findings.json || true
+        fi
+
+        python "${ANNOTATE}" --outputs findings.json >> "${GITHUB_OUTPUT}" || true
+
+        exit "$status"
+
+    - name: Upload findings
+      if: always()
+      uses: actions/upload-artifact@v5
+      with:
+        name: tos-lint-findings
+        path: findings.json
+        if-no-files-found: ignore
+        retention-days: 7

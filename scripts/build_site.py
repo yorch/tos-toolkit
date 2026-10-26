@@ -73,6 +73,7 @@ NAV: list[tuple[str, list[tuple[str, str]]]] = [
             ("rules.md", "Rules"),
             ("consuming.md", "Adopting it"),
             ("publishing.md", "Installing and publishing"),
+            ("agents.md", "Agents and CI"),
             ("architecture.md", "Architecture"),
         ],
     ),

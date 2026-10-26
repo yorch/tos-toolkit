@@ -8,6 +8,22 @@ rule can turn a previously green build red. Pin a version in CI.
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-10-25
+
+### Added
+
+- **`tos mcp`** — serves the toolkit over the Model Context Protocol on stdio, so
+  coding assistants call `tos_lint`, `tos_explain`, `tos_docs` and
+  `tos_syntax_check` as native tools. No dependencies; MCP's stdio transport is
+  JSON-RPC, so no SDK is required. `isError` is reserved for operational failures
+  — findings come back as data.
+- **GitHub Action** at `.github/actions/lint` — installs a pinned version, lints,
+  emits inline `file:line` annotations, and publishes `errors`, `warnings` and the
+  findings JSON as outputs and an artifact.
+- `docs/agents.md` — the three integration paths, with the limits spelled out.
+- `tos lint --json` now reports `ok`, `error_count`, `warning_count` and
+  `files_checked` alongside the findings.
+
 ## [0.1.0]
 
 First release. Extracted from a private ThinkScript repository after the tooling
@@ -48,5 +64,6 @@ caught NaN-scale bugs in two studies before they shipped.
 - `W090` and `E073` ship as warnings because they encode **unverified** platform
   behaviour. They become errors only after a paste-test confirms them.
 
-[Unreleased]: https://github.com/yorch/tos-toolkit/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/yorch/tos-toolkit/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/yorch/tos-toolkit/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/yorch/tos-toolkit/releases/tag/v0.1.0

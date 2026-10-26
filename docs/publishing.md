@@ -42,13 +42,17 @@ Use this when the tool should be pinned alongside a project's other tooling.
 `pip install -e /path/to/tos-toolkit` is the editable form, for working on the
 toolkit itself.
 
-### Once it is on PyPI
+### From PyPI
 
 ```console
 $ pipx install tos-toolkit
 $ uv tool install tos-toolkit
 $ pip install tos-toolkit
+$ uvx tos lint                # run without installing
 ```
+
+Published: <https://pypi.org/project/tos-toolkit/> — `0.1.0`, MIT, no runtime
+dependencies, OIDC attestations attached.
 
 ### The optional grammar check
 
@@ -66,7 +70,8 @@ Everything other than `syntax-check` works without thinkorswim.
 
 ## Publishing to PyPI
 
-The name **`tos-toolkit` is unclaimed on PyPI**, so it is available.
+The project is published as **`tos-toolkit`** on PyPI. This section records how,
+so the process is reproducible for the next release.
 
 Publishing uses [Trusted Publishing](https://docs.pypi.org/trusted-publishers/):
 GitHub Actions mints a short-lived OIDC token and PyPI verifies the workflow.

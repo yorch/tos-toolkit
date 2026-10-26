@@ -1,0 +1,191 @@
+"""MCP server tests: the JSON-RPC surface an assistant actually talks to."""
+
+from __future__ import annotations
+
+import json
+
+import pytest
+from conftest import make_ctx  # noqa: F401  (ensures tmp_path fixtures import)
+
+from tos_toolkit import mcp
+from tos_toolkit.config import Config
+
+
+@pytest.fixture()
+def config(tmp_path):
+    cfg = Config(root=tmp_path)
+    cfg.header_mode = "off"
+    cfg.targets = []
+    return cfg
+
+
+def call(method, params=None, request_id=1):
+    request = {"jsonrpc": "2.0", "id": request_id, "method": method}
+    if params is not None:
+        request["params"] = params
+    return request
+
+
+def test_initialize_echoes_a_supported_protocol(config):
+    response = mcp.handle(call("initialize", {"protocolVersion": "2025-06-18"}), config)
+    assert response["result"]["protocolVersion"] == "2025-06-18"
+    assert response["result"]["serverInfo"]["name"] == "tos-toolkit"
+    assert "tools" in response["result"]["capabilities"]
+
+
+def test_initialize_negotiates_unknown_protocol_down(config):
+    response = mcp.handle(call("initialize", {"protocolVersion": "1999-01-01"}), config)
+    assert response["result"]["protocolVersion"] in mcp.SUPPORTED_PROTOCOLS
+
+
+def test_initialized_notification_gets_no_response(config):
+    assert mcp.handle({"jsonrpc": "2.0", "method": "notifications/initialized"}, config) is None
+
+
+def test_tools_list_is_well_formed(config):
+    tools = mcp.handle(call("tools/list"), config)["result"]["tools"]
+    names = {tool["name"] for tool in tools}
+    assert names == {"tos_lint", "tos_explain", "tos_docs", "tos_syntax_check"}
+    for tool in tools:
+        assert tool["description"]
+        assert tool["inputSchema"]["type"] == "object"
+
+
+def test_explain_known_function(config):
+    response = mcp.handle(
+        call("tools/call", {"name": "tos_explain", "arguments": {"name": "TrueRange"}}),
+        config,
+    )
+    text = response["result"]["content"][0]["text"]
+    assert "TrueRange" in text
+    assert "confidence=" in text
+    assert response["result"]["isError"] is False
+
+
+def test_explain_unknown_function_is_not_an_error(config):
+    """An unknown name is information, not a broken tool call."""
+    response = mcp.handle(
+        call("tools/call", {"name": "tos_explain", "arguments": {"name": "NoSuchFn"}}),
+        config,
+    )
+    assert response["result"]["isError"] is False
+    assert "not in the curated registry" in response["result"]["content"][0]["text"]
+
+
+def test_explain_constant_member(config):
+    response = mcp.handle(
+        call("tools/call", {"name": "tos_explain", "arguments": {"name": "Color.LIGHT_RED"}}),
+        config,
+    )
+    assert "valid Color member" in response["result"]["content"][0]["text"]
+
+
+def test_docs_lists_topics(config):
+    response = mcp.handle(call("tools/call", {"name": "tos_docs", "arguments": {}}), config)
+    text = response["result"]["content"][0]["text"]
+    assert "gotchas" in text
+
+
+def test_docs_reads_a_topic(config):
+    response = mcp.handle(
+        call("tools/call", {"name": "tos_docs", "arguments": {"topic": "gotchas"}}), config
+    )
+    assert "NaN" in response["result"]["content"][0]["text"]
+
+
+def test_docs_unknown_topic_is_a_tool_error(config):
+    response = mcp.handle(
+        call("tools/call", {"name": "tos_docs", "arguments": {"topic": "nope"}}), config
+    )
+    assert response["result"]["isError"] is True
+
+
+def test_lint_reports_findings_without_erroring(config, tmp_path):
+    broken = tmp_path / "broken.thinkscript"
+    broken.write_text(
+        "declare upper;\n"
+        "rec pdHigh = if BarNumber() == 1 then high else pdHigh[1];\n"
+        "plot PdHigh = pdHigh;\n",
+        encoding="utf-8",
+    )
+    response = mcp.handle(
+        call(
+            "tools/call",
+            {"name": "tos_lint", "arguments": {"paths": [str(broken)], "profile": "loose"}},
+        ),
+        config,
+    )
+    result = response["result"]
+    # Finding a problem is a successful call; the agent reads the payload.
+    assert result["isError"] is False
+    payload = json.loads(result["content"][0]["text"])
+    assert payload["ok"] is False
+    assert payload["error_count"] == 1
+    assert payload["findings"][0]["code"] == "E071"
+
+
+def test_lint_clean_file(config, tmp_path):
+    good = tmp_path / "good.thinkscript"
+    good.write_text("declare upper;\nplot Value = close;\n", encoding="utf-8")
+    response = mcp.handle(
+        call(
+            "tools/call",
+            {"name": "tos_lint", "arguments": {"paths": [str(good)], "profile": "loose"}},
+        ),
+        config,
+    )
+    payload = json.loads(response["result"]["content"][0]["text"])
+    assert payload["ok"] is True
+    assert payload["error_count"] == 0
+
+
+def test_lint_missing_path_is_a_tool_error(config):
+    response = mcp.handle(
+        call("tools/call", {"name": "tos_lint", "arguments": {"paths": ["nope.thinkscript"]}}),
+        config,
+    )
+    assert response["result"]["isError"] is True
+
+
+def test_unknown_tool_is_invalid_params(config):
+    response = mcp.handle(call("tools/call", {"name": "nope", "arguments": {}}), config)
+    assert response["error"]["code"] == mcp.INVALID_PARAMS
+
+
+def test_unknown_method(config):
+    response = mcp.handle(call("does/not/exist"), config)
+    assert response["error"]["code"] == mcp.METHOD_NOT_FOUND
+
+
+def test_serve_writes_one_json_object_per_line(config, tmp_path):
+    import io
+
+    stdin = io.StringIO(
+        "\n".join(
+            [
+                json.dumps(call("initialize", {"protocolVersion": "2025-06-18"}, 1)),
+                json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}),
+                json.dumps(call("tools/list", None, 2)),
+            ]
+        )
+        + "\n"
+    )
+    stdout = io.StringIO()
+    assert mcp.serve(config, stdin=stdin, stdout=stdout) == 0
+
+    lines = [line for line in stdout.getvalue().splitlines() if line.strip()]
+    # The notification produced no response.
+    assert len(lines) == 2
+    assert json.loads(lines[0])["id"] == 1
+    assert json.loads(lines[1])["id"] == 2
+
+
+def test_serve_reports_parse_errors_without_dying(config):
+    import io
+
+    stdin = io.StringIO("not json\n" + json.dumps(call("ping", None, 9)) + "\n")
+    stdout = io.StringIO()
+    mcp.serve(config, stdin=stdin, stdout=stdout)
+    responses = [json.loads(line) for line in stdout.getvalue().splitlines() if line.strip()]
+    assert responses[0]["error"]["code"] == mcp.PARSE_ERROR
+    assert responses[1]["result"] == {}

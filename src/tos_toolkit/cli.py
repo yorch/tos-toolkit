@@ -10,6 +10,7 @@ Subcommands
 ``docs``          the bundled ThinkScript knowledge base
 ``explain``       look up one function or constant in the registry
 ``review``        adversarial review of a diff, files, or the whole repo
+``mcp``           serve the toolkit to coding assistants over the Model Context Protocol
 """
 
 from __future__ import annotations
@@ -85,6 +86,15 @@ def _build_parser() -> argparse.ArgumentParser:
     explain = subparsers.add_parser("explain", help="look up a function or constant")
     explain.add_argument("name")
     explain.add_argument("--category", default=None, help="filter by category")
+
+    mcp = subparsers.add_parser(
+        "mcp", help="serve tools to coding assistants over MCP (stdio)"
+    )
+    mcp.add_argument(
+        "--stdio",
+        action="store_true",
+        help="use the stdio transport (the only transport; accepted for clarity)",
+    )
 
     review = subparsers.add_parser("review", help="adversarial review")
     review.add_argument("--mode", choices=["diff", "audit", "files"], default="diff")
@@ -210,7 +220,19 @@ def _cmd_lint(args, config) -> int:
             }
             for f in report.sorted_findings()
         ]
-        print(json.dumps({"findings": payload, "summary": report.summary()}, indent=2))
+        print(
+            json.dumps(
+                {
+                    "ok": not report.errors and not (args.strict and report.warnings),
+                    "error_count": len(report.errors),
+                    "warning_count": len(report.warnings),
+                    "files_checked": report.files_checked,
+                    "findings": payload,
+                    "summary": report.summary(),
+                },
+                indent=2,
+            )
+        )
     else:
         for finding in report.sorted_findings():
             print(finding.render())
@@ -414,6 +436,18 @@ def _cmd_init(args, config) -> int:
     return scaffold.init_project(Path.cwd(), profile=profile, force=args.force)
 
 
+def _cmd_mcp(args, config) -> int:
+    from . import mcp
+
+    # Nothing but JSON-RPC may reach stdout, or the transport is corrupted.
+    print(
+        f"tos mcp: serving {len(mcp.TOOLS)} tool(s) over stdio "
+        f"(server {mcp.SERVER_NAME} {__version__})",
+        file=sys.stderr,
+    )
+    return mcp.serve(config)
+
+
 def _cmd_review(args, config) -> int:
     from . import review
 
@@ -433,6 +467,7 @@ COMMANDS = {
     "new": _cmd_new,
     "init": _cmd_init,
     "review": _cmd_review,
+    "mcp": _cmd_mcp,
 }
 
 

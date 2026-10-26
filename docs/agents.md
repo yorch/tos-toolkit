@@ -1,0 +1,134 @@
+# Agents and CI
+
+Three ways to put this in front of an assistant or a pipeline, cheapest first.
+
+---
+
+## 1. `AGENTS.md` — conventions an assistant reads
+
+`tos init` appends a section to the project's `AGENTS.md` covering the commands,
+the "never invent a function" rule, the `@status` lifecycle, and the NaN
+discipline. Any assistant that reads `AGENTS.md` inherits the conventions without
+being told.
+
+That is the whole integration for chat-style assistants: no protocol, no install
+step for the assistant itself.
+
+---
+
+## 2. MCP — the toolkit as native tools
+
+`tos mcp` serves four tools over the Model Context Protocol on stdio. The
+assistant calls them directly instead of shelling out and parsing output.
+
+```console
+$ tos mcp
+```
+
+| Tool | Purpose |
+| --- | --- |
+| `tos_lint` | Static analysis. Returns structured findings with `file`, `line`, `code`, `severity`, `hint`. |
+| `tos_explain` | Is this function real? Returns the category and a confidence level. |
+| `tos_docs` | The bundled reference: list topics, read one, or search. |
+| `tos_syntax_check` | Grammar check via a local thinkorswim install. Reports *unavailable* rather than failing when ToS is absent. |
+
+### Registering it
+
+Claude Code, Codex, and other MCP clients take a command plus arguments:
+
+```json
+{
+  "mcpServers": {
+    "tos-toolkit": {
+      "command": "tos",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Because the server is invoked from your project directory, `tos_lint` picks up
+that project's `tos.toml` automatically.
+
+### Design notes
+
+- **No dependencies.** MCP's stdio transport is JSON-RPC over stdin/stdout, so no
+  SDK is required and the package stays dependency-free.
+- **Stdout is sacred.** Only JSON-RPC reaches stdout; every diagnostic goes to
+  stderr. One stray `print` would corrupt the stream.
+- **`isError` means the call failed, not that your code is wrong.** A lint run
+  that finds errors returns normally with the findings in the payload — an agent
+  should read them. `isError: true` is reserved for operational failures: a bad
+  path, a missing config, an unavailable parser.
+- **A bad argument cannot kill the server.** Every failure is contained per
+  request; the loop keeps serving.
+
+The `initialize` response also carries `instructions`, so a client that surfaces
+server instructions gets the "verify functions, never claim it works" guidance for
+free.
+
+---
+
+## 3. GitHub Action — enforcement in CI
+
+The Action installs the pinned version, lints, and turns findings into inline
+`file:line` annotations:
+
+```yaml
+name: ThinkScript
+on: [push, pull_request]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: yorch/tos-toolkit/.github/actions/lint@v0.1.0
+        with:
+          paths: studies scans strategies columns
+          profile: strict
+          version: "0.1.0"
+          strict: "true"
+```
+
+| Input | Default | Notes |
+| --- | --- | --- |
+| `paths` | `.` | Space separated. Point it at your artifact directories. |
+| `profile` | `strict` | `loose` for a corpus without header conventions. |
+| `version` | `latest` | **Pin it.** A new rule can fail a green build. |
+| `strict` | `false` | Treat warnings as failures. |
+| `annotations` | `true` | Inline markers. Set `false` for a plain log. |
+| `python-version` | `3.12` | Version used to run the linter. |
+
+Outputs: `errors`, `warnings`, and `json` (path to the findings file, also
+uploaded as an artifact).
+
+No thinkorswim and no JDK are needed — the grammar check is deliberately not part
+of CI, because requiring a licensed desktop platform on a runner is how a gate
+becomes theatre.
+
+### Consuming only the Python package
+
+Nothing forces you to use the Action:
+
+```yaml
+- run: pip install "tos-toolkit==0.1.0"
+- run: tos lint --strict --json > findings.json
+```
+
+---
+
+## Which to use
+
+| Situation | Use |
+| --- | --- |
+| Assistant writing scripts interactively | MCP — it stops guessing function names |
+| Assistant in CI or a headless agent loop | MCP over stdio, or plain `tos lint --json` |
+| Repository hygiene on every PR | the GitHub Action |
+| Human at a terminal | the CLI |
+
+The honest limit applies to all of them: **none of this can tell you a script
+works.** `tos lint` catches structure, `syntax-check` catches grammar, and only
+pasting into thinkorswim proves the thing renders. An assistant should never be
+allowed to mark a script `validated` on its own — that is why `@status` is
+documented as a human-only transition.
