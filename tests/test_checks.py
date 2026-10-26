@@ -482,3 +482,42 @@ def test_layout_rules_off_when_header_mode_off(tmp_path):
     found = codes(findings)
     assert "E120" not in found
     assert "W080" not in found
+
+
+def test_longest_kind_directory_wins(tmp_path):
+    """study="src" and scan="src/scans": a file in src/scans/ is a scan."""
+    from tos_toolkit.checks import Context, run_all
+    from tos_toolkit.config import Config
+    from tos_toolkit.registry import load as load_registry
+
+    path = tmp_path / "src" / "scans" / "x.thinkscript"
+    path.parent.mkdir(parents=True)
+    body = 'AddLabel(yes, "x", Color.GRAY);\nplot A = close > 1;\n'
+    path.write_text(body)
+    config = Config(root=tmp_path)
+    config.header_mode = "off"
+    config.kind_dirs = {"study": "src", "scan": "src/scans"}
+    ctx = Context(
+        path=path, root=tmp_path, text=body, config=config, registry=load_registry()
+    )
+    assert "E401" in codes(run_all(ctx))
+
+
+def test_scan_with_multiple_plots_warns(tmp_path):
+    text = SCAN.replace(
+        "plot Scan = close > avg;", "plot Scan = close > avg;\nplot Other = close < avg;"
+    )
+    findings = _findings(tmp_path, text, subdir="scans", filename="sample_scan.thinkscript")
+    assert "W403" in codes(findings)
+
+
+def test_empty_run_is_not_a_pass(tmp_path, monkeypatch):
+    """Only ignored .ts files present: nothing checked, so nothing passed."""
+    from tos_toolkit.cli import main
+
+    (tmp_path / "tos.toml").write_text(
+        '[profile]\nname = "loose"\n[checks]\nE005 = "off"\n', encoding="utf-8"
+    )
+    (tmp_path / "a.ts").write_text("plot x = close;\n")
+    monkeypatch.chdir(tmp_path)
+    assert main(["lint", "."]) == 2

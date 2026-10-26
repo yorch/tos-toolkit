@@ -27,11 +27,18 @@ def _kind_from_directory(ctx) -> str:
     parts = ctx.rel.parts
     if not parts:
         return ""
+    best_kind = ""
+    best_len = 0
     for kind, name in ctx.config.kind_dirs.items():
         wanted = Path(name).parts
-        if wanted and tuple(parts[: len(wanted)]) == wanted:
-            return kind
-    return ""
+        if not wanted:
+            continue
+        if tuple(parts[: len(wanted)]) == wanted and len(wanted) > best_len:
+            # A more specific directory wins: with study="src" and scan="src/scans",
+            # a file in src/scans/ is a scan.
+            best_kind = kind
+            best_len = len(wanted)
+    return best_kind
 
 
 def check(ctx) -> list[Finding]:
@@ -98,6 +105,20 @@ def _scan(ctx) -> list[Finding]:
     for line in _declares_panel(ctx):
         out.append(
             ctx.finding("E405", line, "a scan has no panel; remove 'declare upper/lower'")
+        )
+
+    plots = [s for s in ctx.statements if s.keyword == "plot"]
+    if len(plots) > 1:
+        out.append(
+            ctx.finding(
+                "W403",
+                plots[1].start_line,
+                f"scan has {len(plots)} plots; a scan filter is expected to expose one",
+                hint=(
+                    "Schwab's scanner documentation describes a single plot per "
+                    "filter. Unverified here, so this is a warning: paste-test it."
+                ),
+            )
         )
 
     terminated = [s for s in ctx.statements if s.tokens]

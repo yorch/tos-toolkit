@@ -54,6 +54,7 @@ DEFAULT_LEVELS: dict[str, Level] = {
     "W104": Level.WARN,
     "W401": Level.WARN,
     "W402": Level.WARN,
+    "W403": Level.WARN,
     "W080": Level.WARN,
     "W081": Level.WARN,
     "W090": Level.WARN,

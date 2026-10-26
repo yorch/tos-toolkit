@@ -140,6 +140,7 @@ These are the platform's rules, not ours.
 | `E405` | error | `declare upper/lower` in a scan or column |
 | `W401` | warn | strategy with no `AddOrder` |
 | `W402` | warn | scan plot is a constant, so every symbol matches |
+| `W403` | warn | scan exposes more than one plot |
 
 `AddLabel` and `AssignBackgroundColor` **are** legal in columns; the other drawing
 functions are not. Function names are matched case-insensitively, because
@@ -147,6 +148,10 @@ ThinkScript identifiers are.
 
 `E403` checks that the last statement is a `plot`; it does not attempt to prove
 the expression is boolean-comparison shaped.
+
+`W403` is a **warning** because the "one plot per filter" rule is documented by
+Schwab but unverified here. Multiple plots may work; a scan that silently uses
+the wrong one is worse than a warning, so it is surfaced either way.
 
 **These do not require a header.** If a file has no `@kind`, the kind is inferred
 from the configured directory, so a headerless `scans/foo.thinkscript` that calls

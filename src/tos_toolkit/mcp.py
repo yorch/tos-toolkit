@@ -228,10 +228,6 @@ def _tool_lint(args: dict[str, Any], config: Config) -> tuple[str, bool]:
     registry = load_registry()
     paths = list(args.get("paths") or [])
     files, stray = _discover(active, paths)
-    if not files and not stray:
-        raise ToolError(
-            f"no .thinkscript files found under: {', '.join(paths) or 'configured targets'}"
-        )
 
     findings: list[dict[str, Any]] = []
     errors = warnings = 0
@@ -275,6 +271,13 @@ def _tool_lint(args: dict[str, Any], config: Config) -> tuple[str, bool]:
                 errors += 1
             elif finding.is_warning:
                 warnings += 1
+
+    if not files and not findings:
+        # Nothing checked and nothing reported is not a pass, even when every
+        # discovered file was an .ts that the configuration chose to ignore.
+        raise ToolError(
+            f"no .thinkscript files found under: {', '.join(paths) or 'configured targets'}"
+        )
 
     ok = errors == 0 and not (args.get("strict") and warnings)
     payload = {

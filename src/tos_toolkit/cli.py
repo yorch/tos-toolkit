@@ -197,7 +197,23 @@ def _cmd_lint(args, config) -> int:
     try:
         files, stray = _walk(targets, config.root, strict_paths=bool(args.paths))
     except SystemExit:
-        print(f"error: path not found: {' '.join(args.paths)}", file=sys.stderr)
+        message = f"path not found: {' '.join(args.paths)}"
+        print(f"error: {message}", file=sys.stderr)
+        if args.json:
+            print(
+                json.dumps(
+                    {
+                        "ok": False,
+                        "targets_found": False,
+                        "error_count": 0,
+                        "warning_count": 0,
+                        "files_checked": 0,
+                        "findings": [],
+                        "summary": message,
+                    },
+                    indent=2,
+                )
+            )
         return 2
     report = Report()
 
@@ -239,7 +255,9 @@ def _cmd_lint(args, config) -> int:
         report.files_checked += 1
         report.extend(run_all(ctx))
 
-    empty = report.files_checked == 0 and not stray
+    # Empty means nothing was checked *and* nothing was reported: with E005
+    # disabled, a tree of ignored .ts files would otherwise look like a clean run.
+    empty = report.files_checked == 0 and not report.findings
     if empty and not args.allow_empty:
         message = (
             "no .thinkscript files were checked; refusing to report success "

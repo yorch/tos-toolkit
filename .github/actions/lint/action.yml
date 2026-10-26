@@ -56,7 +56,7 @@ outputs:
     value: ${{ steps.lint.outputs.warnings }}
   json:
     description: Path to the machine-readable findings file.
-    value: ${{ steps.lint.outputs.json }}
+    value: ${{ steps.lint.outputs.report }}
 
 runs:
   using: composite
