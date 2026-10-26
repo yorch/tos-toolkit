@@ -31,12 +31,16 @@ assistant calls them directly instead of shelling out and parsing output.
 $ tos mcp
 ```
 
-| Tool | Purpose |
-| --- | --- |
-| `tos_lint` | Static analysis. Returns structured findings with `file`, `line`, `code`, `severity`, `hint`. |
-| `tos_explain` | Is this function real? Returns the category and a confidence level. |
-| `tos_docs` | The bundled reference: list topics, read one, or search. |
-| `tos_syntax_check` | Grammar check via a local thinkorswim install. Reports *unavailable* rather than failing when ToS is absent. |
+| Tool | Arguments | Purpose |
+| --- | --- | --- |
+| `tos_lint` | `paths`, `profile`, `strict` | Static analysis. Returns structured findings with `file`, `line`, `code`, `severity`, `hint`. |
+| `tos_explain` | `name` | Is this function real? Returns the category and a confidence level. |
+| `tos_docs` | `topic`, `grep` | The bundled reference: list topics, read one, or search. |
+| `tos_syntax_check` | `paths` | Grammar check via a local thinkorswim install. Reports *unavailable* rather than failing when ToS is absent. |
+
+`paths` accepts files or directories and defaults to the configured targets.
+`profile` is `strict` or `loose`. `topic` must name a bundled topic (an arbitrary
+path is rejected), and `grep` searches the whole reference instead.
 
 ### Registering it
 
@@ -105,6 +109,7 @@ jobs:
 | `strict` | `false` | Treat warnings as failures. |
 | `annotations` | `true` | Inline markers. Set `false` for a plain log. |
 | `python-version` | `3.12` | Version used to run the linter. |
+| `artifact-name` | `tos-lint-findings` | Artifact name for the findings file. Two invocations in one run need distinct names. |
 
 Outputs: `errors`, `warnings`, and `json` (path to the findings file, also
 uploaded as an artifact).

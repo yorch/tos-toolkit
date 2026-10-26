@@ -8,6 +8,30 @@ rule can turn a previously green build red. Pin a version in CI.
 
 ## [Unreleased]
 
+### Added
+
+- `docs/commands.md` now documents `tos mcp` (it was only on the Agents page), the
+  full `--json` payload, and `syntax-check --allow-empty`.
+- `docs/agents.md` documents each MCP tool's arguments and the Action's
+  `artifact-name` input.
+- `docs/configuration.md` documents the remaining `[header]` keys (`required`,
+  `optional`, `statuses`, `assets`, `timeframes`, `panels`).
+- `tests/test_docs_coverage.py` enumerates the real surface — subcommands, flags,
+  MCP tools and their arguments, Action inputs, diagnostic codes, `tos.toml` keys —
+  and fails when one is undocumented.
+
+### Removed
+
+- `tos explain --category` and `tos mcp --stdio`: both were accepted and ignored.
+  A flag that changes nothing is worse than a missing one, because it implies a
+  choice the tool does not offer. The new dead-flag test caught the second one.
+
+### Fixed
+
+- A `script { … }` block no longer confuses the secondary-aggregation rule, and
+  `plot Scan;`-style declarations are no longer reported as bare assignments
+  (see 0.2.0 notes).
+
 ## [0.2.1] — 2026-10-26
 
 ### Fixed

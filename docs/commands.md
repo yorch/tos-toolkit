@@ -40,6 +40,11 @@ such as a freshly scaffolded project before its first script.
 
 ```json
 {
+  "ok": false,
+  "targets_found": true,
+  "error_count": 1,
+  "warning_count": 0,
+  "files_checked": 1,
   "findings": [
     {
       "path": "studies/trend/x.thinkscript",
@@ -53,6 +58,9 @@ such as a freshly scaffolded project before its first script.
   "summary": "1 file(s) checked · 1 error(s) · 0 warning(s)"
 }
 ```
+
+`ok` is `false` when there is an error, when `--strict` promotes a warning, or when
+nothing was checked. `targets_found` distinguishes "clean" from "nothing matched".
 
 `severity` is `"error"` or `"warning"` (not `"warn"`).
 
@@ -97,7 +105,9 @@ NOTE: grammar only — function names, types, and semantics are not verified.
 | 2 | the check could not run (no thinkorswim, no JDK, disabled) |
 
 Exit 2 is deliberate: a gate that cannot run must never report success. Use
-`--keep-going` to report all files instead of stopping at the first failure.
+`--keep-going` to report all files instead of stopping at the first failure, and
+`--allow-empty` to accept a tree with no `.thinkscript` files (otherwise a run
+that checked zero files also exits 2).
 
 Under the hood: a 59-line reflection shim compiles against the jars already on
 your machine and asks their parser. Nothing is bundled.
@@ -174,6 +184,43 @@ Exit 1 when the name is unknown — but an unknown name means "not in the curate
 registry", not "invalid".
 
 ---
+
+## `tos mcp`
+
+Serve the toolkit to a coding assistant over the
+[Model Context Protocol](https://modelcontextprotocol.io) on stdio. It is a
+long-running process, not a one-shot command.
+
+```console
+$ tos mcp
+```
+
+There is no transport flag: stdio is the only transport.
+
+Nothing but JSON-RPC is written to stdout — a single stray `print` would corrupt
+the stream, so every diagnostic goes to stderr. The process exits 0 when stdin
+closes.
+
+Tools exposed:
+
+| Tool | Arguments | Returns |
+| --- | --- | --- |
+| `tos_lint` | `paths`, `profile`, `strict` | JSON: `ok`, `files_checked`, `error_count`, `warning_count`, `findings[]` |
+| `tos_explain` | `name` | category and confidence for a function, or membership for a constant |
+| `tos_docs` | `topic`, `grep` | list topics, read one, or search the reference |
+| `tos_syntax_check` | `paths` | per-file grammar result |
+
+Two protocol details that matter when writing a client:
+
+- **`isError` means the call failed, not that your code is wrong.** A lint run that
+  finds `E071` returns normally with the findings in the payload. `isError: true` is
+  reserved for operational failures: a bad path, a missing config, an unavailable
+  parser.
+- **Notifications never receive a response**, and a malformed request cannot kill
+  the server: it is answered with `INVALID_PARAMS` and the loop continues.
+
+Registering it, and why an assistant should call `tos_explain` before writing a
+function call: [Agents and CI](agents.md).
 
 ## `tos review`
 

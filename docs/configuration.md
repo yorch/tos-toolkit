@@ -15,6 +15,12 @@ templates_dir = "templates"
 
 [header]
 mode = "required"            # required | optional | off
+required = ["name", "kind", "panel", "assets", "timeframes", "version", "status"]
+optional = ["inputs", "repaints", "notes", "superseded-by", "requires"]
+statuses = ["draft", "validated", "in-use", "deprecated"]
+assets = ["stock", "option", "future", "crypto", "index"]
+timeframes = ["intraday", "daily", "weekly", "monthly"]
+panels = ["upper", "lower", "none"]
 
 [parser]
 enabled = true
@@ -57,6 +63,20 @@ collisions, `rec` depth, and the platform artifact rules.
 | `off` | header rules do not run at all |
 
 `optional` is the migration path for an existing repo.
+
+The remaining `[header]` keys replace the built-in vocabulary for an existing
+repo:
+
+| Key | Default | Purpose |
+| --- | --- | --- |
+| `required` | the seven keys above | header keys that must be present (`E102`) |
+| `optional` | `inputs`, `repaints`, `notes`, `superseded-by`, `requires` | keys that are checked when present |
+| `statuses` | `draft`, `validated`, `in-use`, `deprecated` | allowed `@status` values (`E103`) |
+| `assets` | `stock`, `option`, `future`, `crypto`, `index` | allowed `@assets` values |
+| `timeframes` | `intraday`, `daily`, `weekly`, `monthly` | allowed `@timeframes` values |
+| `panels` | `upper`, `lower`, `none` | allowed `@panel` values |
+
+Lists are **replaced**, not merged, so state the full set when you override one.
 
 `mode` gates **header validation** (`header.py`) and **layout/naming**
 (`layout.py`). It does not disable header *parsing*: if a file declares

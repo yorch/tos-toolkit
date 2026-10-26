@@ -98,15 +98,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
     explain = subparsers.add_parser("explain", help="look up a function or constant")
     explain.add_argument("name")
-    explain.add_argument("--category", default=None, help="filter by category")
 
-    mcp = subparsers.add_parser(
+    # No transport flag: stdio is the only transport, and a flag that changes
+    # nothing implies a choice that does not exist.
+    subparsers.add_parser(
         "mcp", help="serve tools to coding assistants over MCP (stdio)"
-    )
-    mcp.add_argument(
-        "--stdio",
-        action="store_true",
-        help="use the stdio transport (the only transport; accepted for clarity)",
     )
 
     review = subparsers.add_parser("review", help="adversarial review")
