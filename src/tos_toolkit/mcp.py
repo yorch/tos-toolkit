@@ -231,6 +231,7 @@ def _tool_lint(args: dict[str, Any], config: Config) -> tuple[str, bool]:
 
     findings: list[dict[str, Any]] = []
     errors = warnings = 0
+    checked = 0
 
     # A .ts file collides with TypeScript and is an error in the CLI; dropping it
     # here would make the same tree pass over MCP and fail in CI.
@@ -276,6 +277,7 @@ def _tool_lint(args: dict[str, Any], config: Config) -> tuple[str, bool]:
             continue
         except OSError as exc:
             raise ToolError(f"cannot read {path}: {exc}") from exc
+        checked += 1
         ctx = Context(path=path, root=active.root, text=text, config=active, registry=registry)
         for finding in run_all(ctx):
             findings.append(
@@ -293,18 +295,20 @@ def _tool_lint(args: dict[str, Any], config: Config) -> tuple[str, bool]:
             elif finding.is_warning:
                 warnings += 1
 
-    if not files and not findings:
-        # Nothing checked and nothing reported is not a pass, even when every
-        # discovered file was an .ts that the configuration chose to ignore.
+    if checked == 0 and not findings:
+        # Nothing analysed and nothing reported is not a pass: discovered files
+        # that were skipped (an ignored .ts, an undecodable file with E006 off)
+        # must not read as a clean run.
         raise ToolError(
-            f"no .thinkscript files found under: {', '.join(paths) or 'configured targets'}"
+            f"no .thinkscript files could be analysed under: "
+            f"{', '.join(paths) or 'configured targets'}"
         )
 
     ok = errors == 0 and not (args.get("strict") and warnings)
     payload = {
         "ok": ok,
         "profile": active.profile,
-        "files_checked": len(files),
+        "files_checked": checked,
         "error_count": errors,
         "warning_count": warnings,
         "findings": findings,
@@ -359,6 +363,13 @@ def _tool_docs(args: dict[str, Any], config: Config) -> tuple[str, bool]:
 
     topic = args.get("topic")
     if topic:
+        available = [slug for slug, _ in knowledge.topics()]
+        # Never pass caller input to the filesystem: an absolute path or "../.."
+        # would read any Markdown file the process can see.
+        if str(topic) not in available:
+            raise ToolError(
+                f"unknown topic {topic!r}. Available: {', '.join(available)}"
+            )
         body = knowledge.read(str(topic))
         if body is None:
             available = ", ".join(slug for slug, _ in knowledge.topics())

@@ -168,11 +168,7 @@ def _column(ctx) -> list[Finding]:
             )
         )
     plots = [s for s in ctx.statements if s.keyword == "plot"]
-    has_label = any(
-        token.kind is Kind.IDENT and token.lower == "addlabel"
-        for statement in ctx.statements
-        for token in statement.tokens
-    )
+    has_label = any(name.lower() == "addlabel" for name, _line in _calls(ctx))
     if not plots and not has_label:
         # Custom quotes support label-only output, so a plot is not the only form.
         out.append(

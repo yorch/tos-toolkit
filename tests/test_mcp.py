@@ -344,3 +344,33 @@ def test_undecodable_file_does_not_abort_the_batch(config, tmp_path):
     found = {f["code"] for f in payload["findings"]}
     assert "E006" in found
     assert "E071" in found
+
+
+def test_docs_topic_cannot_escape_the_knowledge_base(config):
+    response = mcp.handle(
+        call("tools/call", {"name": "tos_docs", "arguments": {"topic": "/etc/hosts"}}),
+        config,
+    )
+    assert response["result"]["isError"] is True
+    assert "unknown topic" in response["result"]["content"][0]["text"]
+
+
+def test_undecodable_file_with_e006_off_is_not_a_pass(config, tmp_path):
+    """Discovered but unanalysable is not "clean"."""
+    path = tmp_path / "bad.thinkscript"
+    path.write_bytes(b"declare upper;\nplot A = \xff\xfe close;\n")
+
+    project = tmp_path / "proj"
+    project.mkdir()
+    (project / "tos.toml").write_text(
+        '[profile]\nname = "loose"\n[checks]\nE006 = "off"\n', encoding="utf-8"
+    )
+    from tos_toolkit.config import load as load_config
+
+    scoped = load_config(config_path=project / "tos.toml")
+    scoped.root = tmp_path
+    response = mcp.handle(
+        call("tools/call", {"name": "tos_lint", "arguments": {"paths": [str(path)]}}),
+        scoped,
+    )
+    assert response["result"]["isError"] is True

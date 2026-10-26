@@ -559,3 +559,10 @@ def test_kind_dir_dot_means_project_root(tmp_path):
         path=path, root=tmp_path, text=body, config=config, registry=load_registry()
     )
     assert "E401" in codes(run_all(ctx))
+
+
+def test_column_identifier_named_addlabel_is_not_output(tmp_path):
+    """`def AddLabel = close;` is not a label call."""
+    text = COLUMN.replace("plot Value = close - avg;", "def AddLabel = close;")
+    findings = _findings(tmp_path, text, subdir="columns", filename="sample_col.thinkscript")
+    assert "E404" in codes(findings)
