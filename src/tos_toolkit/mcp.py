@@ -451,15 +451,17 @@ def handle(request: dict[str, Any], config: Config) -> dict[str, Any] | None:
     request_id = request.get("id")
     method = request.get("method")
 
+    # JSON-RPC: a message with no `id` is a notification and must never be
+    # answered — including a malformed one. Checked before validation, because
+    # replying to a notification is the more serious violation.
+    is_notification = "id" not in request
+    if is_notification:
+        return None
+
     if not isinstance(method, str):
         return _error(request_id, INVALID_REQUEST, "missing 'method'")
 
-    is_notification = "id" not in request
     params = request.get("params")
-    if is_notification:
-        # JSON-RPC: a notification never gets a response — not for a malformed
-        # params value, not for ping, not for an unknown method.
-        return None
     if params is None:
         params = {}
     if not isinstance(params, dict):

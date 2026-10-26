@@ -29,6 +29,20 @@ from .registry import load as load_registry
 THINKSSCRIPT_SUFFIX = ".thinkscript"
 STRAY_SUFFIX = ".ts"
 
+# Directories never scanned for ThinkScript, nor reported as stray .ts.
+SKIP_DIRS = {
+    ".git",
+    ".venv",
+    "venv",
+    "node_modules",
+    "site-packages",
+    "__pycache__",
+    "build",
+    "dist",
+    ".review",
+    "site",
+}
+
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -146,6 +160,10 @@ def _walk(
             continue
         for item in sorted(path.rglob("*")):
             if not item.is_file():
+                continue
+            # Never walk vendor/build directories: a repo that also contains
+            # TypeScript would otherwise fail on every .d.ts under node_modules.
+            if any(part in SKIP_DIRS for part in item.parts):
                 continue
             if item.name.endswith(STRAY_SUFFIX):
                 stray.append(item)
@@ -345,9 +363,10 @@ def _cmd_status(args, config) -> int:
         key = status if status in known else "unknown"
         counts[key] = counts.get(key, 0) + 1
     print("\nSummary")
-    for status in ["draft", "validated", "in-use", "deprecated", "unknown"]:
-        if counts.get(status):
-            print(f"  {status:<12} {counts[status]}")
+    # Print every observed status, including ones a project added in tos.toml, or
+    # the total silently disagrees with the table above it.
+    for status in sorted(counts, key=lambda s: (s == "unknown", s)):
+        print(f"  {status:<12} {counts[status]}")
     debt = counts.get("draft", 0) + counts.get("unknown", 0)
     if debt:
         print(
@@ -538,8 +557,15 @@ def main(argv: list[str] | None = None) -> int:
     try:
         config = load(config_path=args.config, profile=args.profile)
     except ConfigError as exc:
-        print(f"tos: {exc}", file=sys.stderr)
-        return 2
+        # `init` must still run with a broken config: it is the command a user
+        # reaches for to repair the project.
+        if args.command != "init":
+            print(f"tos: {exc}", file=sys.stderr)
+            return 2
+        print(f"tos: ignoring unreadable config ({exc})", file=sys.stderr)
+        from .config import Config as _Config
+
+        config = _Config(root=Path.cwd())
 
     handler = COMMANDS.get(args.command)
     if handler is None:  # pragma: no cover - argparse guards this

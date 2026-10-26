@@ -8,20 +8,21 @@ Prefixes group by concern:
 | Range | Concern | Gated by `[header] mode`? |
 | --- | --- | --- |
 | `E001`–`E006` | file and lexical hygiene | no |
-| `E031` | declaration placement | no, but needs a declared `@kind` |
+| `E031` | declaration placement | no, but only fires when `@kind` is declared |
 | `E050` | asset-class declarations | **yes** — it reads `@assets`, which only exists in a header |
 | `E070`–`E073` | identifiers | no |
-| `E101`–`W104` | header block | **yes** |
+| `E101`–`E104`, `W101`–`W104` | header block | **yes** |
 | `E120`, `W080`, `W081` | artifact kind vs location, naming | **yes** |
-| `E401`–`W402` | artifact-specific platform restrictions | no, but needs a declared `@kind` |
+| `E401`–`E407`, `W401`–`W402` | artifact-specific platform restrictions | **no** — the kind comes from the configured directory when the header omits it |
 | `W001`, `W002` | style | no |
-| `W050` | repaint honesty | no, but needs `@repaints` present |
+| `W050` | repaint honesty | no, but only fires when `@repaints: no` is declared |
 | `W090`, `W091` | unverified `rec` behaviour | no |
 
-The header block is always *parsed*, even when `mode = "off"`. The mode gates
-header validation and layout rules. Rules that describe **platform behaviour**
-(`E401`, `E031`, `W050`) still apply whenever a file declares the header keys they
-read, because they are about what thinkorswim will do, not about your repo layout.
+The header block is always *parsed*, even when `mode = "off"`; the mode gates
+validation and layout, not parsing. Rules about **platform behaviour** run
+regardless, because they describe what thinkorswim does, not how your repo is
+organised — `E401` even infers the artifact kind from the configured directory, so
+a header is not required at all.
 
 ---
 
@@ -99,7 +100,7 @@ the registry grows. A file that calls `GetATMOption()` must declare
 
 | Code | Default | Detects |
 | --- | --- | --- |
-| `E031` | warn | a study or strategy that does not open with a `declare` (unverified) |
+| `E031` | warn | a study or strategy that does not open with a `declare` (unverified; needs `@kind`) |
 | `E101` | error | missing header block |
 | `E102` | error | missing required key |
 | `E103` | error | invalid `@status` / `@kind` / `@panel` / `@assets` / `@timeframes` |

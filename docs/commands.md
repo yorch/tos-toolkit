@@ -83,6 +83,8 @@ Validation debt: 3 script(s) not validated (draft or missing/unknown @status).
 
 Any `@status` that is missing or misspelled is counted as debt, not ignored.
 
+Exit codes: `0` always — `status` is a report, not a gate. Use `tos lint` in CI.
+
 ---
 
 ## `tos syntax-check`
@@ -132,6 +134,9 @@ Kind can be inferred from the path (`columns/...` → column). Names must be
 `lower_snake_case`. A project's own `templates/<kind>.thinkscript` wins over the
 packaged starter, so local customisations apply.
 
+Exit codes: `0` created, `2` on a bad kind, a non-snake_case name, an existing
+target (never overwrites), or a path outside the project.
+
 ---
 
 ## `tos init`
@@ -146,7 +151,15 @@ $ tos init --force         # overwrite
 
 Writes `tos.toml`, artifact directories, templates, `docs/validation.md`, a
 `justfile`, `.gitignore`, and appends a conventions section to `AGENTS.md`.
-Never overwrites existing files unless `--force`.
+
+`--force` **replaces** `justfile` and `.gitignore` outright rather than merging —
+if you have customised either, check them afterwards. An unknown `--profile` is
+rejected before anything is written.
+
+`tos init` still runs when `tos.toml` is broken, because it is the command you
+reach for to repair a project.
+
+Exit codes: `0` written, `2` on an unknown profile or an unwritable path.
 
 ---
 
@@ -159,6 +172,9 @@ $ tos docs --list
 $ tos docs gotchas
 $ tos docs --grep "crosses above"
 ```
+
+Exit codes: `0` on success, `1` when `--grep` finds nothing, `2` for an unknown
+topic or usage error.
 
 ---
 
@@ -205,19 +221,32 @@ Tools exposed:
 
 | Tool | Arguments | Returns |
 | --- | --- | --- |
-| `tos_lint` | `paths`, `profile`, `strict` | JSON: `ok`, `files_checked`, `error_count`, `warning_count`, `findings[]` |
+| `tos_lint` | `paths`, `profile`, `strict` | JSON: `ok`, `files_checked`, `error_count`, `warning_count`, and `findings[]` where each finding has `path`, `line`, `code`, `severity`, `message`, `hint` |
 | `tos_explain` | `name` | category and confidence for a function, or membership for a constant |
-| `tos_docs` | `topic`, `grep` | list topics, read one, or search the reference |
-| `tos_syntax_check` | `paths` | per-file grammar result |
+| `tos_docs` | `topic`, `grep` | list topics, read one, or search the reference. `topic` must name a bundled topic; an arbitrary path is rejected |
+| `tos_syntax_check` | `paths` | per-file grammar result. When no thinkorswim install is available this returns `isError: true` with an explanation |
 
-Two protocol details that matter when writing a client:
+Protocol details that matter when writing a client:
 
 - **`isError` means the call failed, not that your code is wrong.** A lint run that
-  finds `E071` returns normally with the findings in the payload. `isError: true` is
-  reserved for operational failures: a bad path, a missing config, an unavailable
-  parser.
-- **Notifications never receive a response**, and a malformed request cannot kill
-  the server: it is answered with `INVALID_PARAMS` and the loop continues.
+  finds `E071` returns normally with the findings in the payload. `isError: true`
+  is reserved for operational failures: a bad path, an unknown `tos.toml` topic, an
+  unavailable parser.
+- **Notifications never receive a response** — including malformed ones, since a
+  message with no `id` is a notification.
+- **A malformed request cannot kill the server**, but the error code tells you what
+  happened rather than everything collapsing to one value:
+
+| Situation | JSON-RPC error |
+| --- | --- |
+| body is not valid JSON | `-32700` parse error |
+| method is missing | `-32600` invalid request |
+| unknown method | `-32601` method not found |
+| `tools/call` with a bad or missing `name`, or non-object `arguments` | `-32602` invalid parameters |
+| a tool fails operationally | a normal result with `isError: true`, not an error object |
+
+**A broken `tos.toml` stops the server at startup** (exit 2) rather than surfacing
+per request, so fix the config before wiring the server into a client.
 
 Registering it, and why an assistant should call `tos_explain` before writing a
 function call: [Agents and CI](agents.md).
@@ -248,6 +277,12 @@ Behaviour worth knowing:
 - **It lints every configured target first**, not just the files under review, and
   exits 1 if any static error exists — the same code BLOCK uses.
 - **A clean tree exits 0** with "nothing in scope".
+- **`paths` is only honoured with `--mode files`.** `--mode diff` and `--mode audit`
+  take their scope from git and from the configured targets, so passing a path
+  alongside them is silently ignored.
+- **Too-large input fails closed.** `--mode files` exits 2 rather than reviewing a
+  subset when the selection exceeds the size budget; `--mode diff` names the files
+  it could not inline and warns that the verdict is incomplete.
 - Any harness other than `codex` is treated as a substitute and needs its model
   named explicitly; a typo in `--harness` falls through to the `claude` path.
 - **A substitute harness exits 3**, so a hook cannot mistake it for a gate pass.

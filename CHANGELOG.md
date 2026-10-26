@@ -8,6 +8,51 @@ rule can turn a previously green build red. Pin a version in CI.
 
 ## [Unreleased]
 
+### Fixed
+
+Documentation corrected against the code, found by an adversarial audit:
+
+- `configuration.md` claimed `tos --profile loose lint` with no `tos.toml` exits 0.
+  It exits 2: an empty run is not a pass.
+- The MCP section overstated three things — findings use `path` and include
+  `message`; an unavailable parser returns `isError: true` rather than "reporting
+  unavailable"; and each malformed request gets a distinct JSON-RPC error code
+  (`-32700`/`-32600`/`-32601`/`-32602`), not one.
+- Rule gating was described wrongly: `E050` *is* gated by header mode, `E031` and
+  `W050` are not but need the key they read, and artifact rules infer the kind from
+  the configured directory so they never need `@kind`.
+- `--profile loose` was described as "language rules only", which ignores that a
+  project's own `tos.toml` applies on top; said so in the README, Agents page and
+  adoption guide.
+- `README` now lists `tos mcp` and links the reference documents.
+- `status`, `docs`, `new` and `init` had no exit-code statements.
+- The Action's `paths` default of `.` walks the repository; documented, and vendor
+  directories are now skipped so `.ts` files under `node_modules` no longer fail CI.
+- `tos review` accepts `paths` only with `--mode files`, and now fails closed when
+  the selection exceeds the size budget instead of reviewing a subset.
+
+### Fixed (code)
+
+- `tos init` runs even when `tos.toml` is unparseable — it is the command you use to
+  repair the project. An unknown `--profile` is rejected before anything is written.
+- A notification with no `method` no longer receives a response.
+- `tos status` prints every observed status, including ones added via `tos.toml`.
+- `tos review --mode files` exits 2 rather than reviewing a subset when files exceed
+  the size budget; diff mode names the files it could not inline.
+- Scans skip vendor and build directories (`.git`, `.venv`, `node_modules`,
+  `site-packages`, `build`, `dist`, `site`).
+
+### Changed (tests)
+
+`tests/test_docs_coverage.py` was weaker than it claimed, which the audit proved:
+it silently skipped `syntax-check` (the handler is `_cmd_syntax`, not
+`_cmd_syntax_check`), and its MCP argument check matched `paths`/`profile`/`strict`
+in the Action's table rather than the MCP tool's own row. It now resolves handlers
+through the COMMANDS table and fails when it cannot, checks flags and arguments
+inside the relevant section or table row, requires a numeric exit code per command,
+requires each JSON-RPC error code to be documented, and reads config keys from
+`config.py` as well as the profile files.
+
 ### Added
 
 - `docs/commands.md` now documents `tos mcp` (it was only on the Agents page), the

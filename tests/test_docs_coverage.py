@@ -61,16 +61,48 @@ def test_every_command_has_a_reference_section():
     )
 
 
-def test_every_flag_is_documented():
+def command_sections() -> dict[str, str]:
+    """Split docs/commands.md into one blob per `## `tos <name>`` section."""
     commands = read("docs", "commands.md")
+    sections: dict[str, str] = {}
+    current = None
+    buffer: list[str] = []
+    for line in commands.splitlines():
+        match = re.match(r"^## `tos ([a-z-]+)`", line)
+        if match:
+            if current:
+                sections[current] = "\n".join(buffer)
+            current = match.group(1)
+            buffer = []
+            continue
+        if current and line.startswith("## "):
+            sections[current] = "\n".join(buffer)
+            current = None
+            buffer = []
+            continue
+        if current:
+            buffer.append(line)
+    if current:
+        sections[current] = "\n".join(buffer)
+    return sections
+
+
+def test_every_flag_is_documented_in_its_own_section():
+    """A flag mentioned anywhere is not documented: it must be in its command's section.
+
+    Matching the whole file let `init --profile` pass on the strength of the global
+    usage line.
+    """
+    sections = command_sections()
     missing: list[str] = []
     for name, sub in cli_subparsers().items():
+        section = sections.get(name, "")
         for action in sub._actions:
             for option in action.option_strings:
                 if not option.startswith("--") or option == "--help":
                     continue
-                if option not in commands:
-                    missing.append(f"tos {name} {option}")
+                if option not in section:
+                    missing.append(f"tos {name} {option} is not in the `tos {name}` section")
     assert not missing, "undocumented flags:\n  " + "\n  ".join(sorted(missing))
 
 
@@ -82,9 +114,13 @@ def test_no_dead_flags():
     source = read("src", "tos_toolkit", "cli.py")
 
     for name, sub in cli_subparsers().items():
-        handler = source.split(f'def _cmd_{name.replace("-", "_")}', 1)
-        if len(handler) < 2:
-            continue
+        # The handler name does not always mirror the command name (syntax-check
+        # is `_cmd_syntax`). Resolve it through the COMMANDS table, and fail loudly
+        # when it cannot be found — silently skipping is how a dead flag hid here.
+        registered = re.search(rf'"{re.escape(name)}":\s*(_cmd_[a-z_]+)', source)
+        assert registered, f"no COMMANDS entry found for '{name}'"
+        handler = source.split(f"def {registered.group(1)}", 1)
+        assert len(handler) == 2, f"handler {registered.group(1)} not found in cli.py"
         body = handler[1].split("\ndef ", 1)[0]
         for action in sub._actions:
             for option in action.option_strings:
@@ -96,6 +132,28 @@ def test_no_dead_flags():
                     f"tos {name} accepts {option} but _cmd_{name} never reads "
                     f"args.{attr} — remove the flag or implement it"
                 )
+
+
+def test_every_command_states_its_exit_codes():
+    """Every command can fail; a reference that hides its exit codes cannot gate CI.
+
+    Accepts a table row or a sentence, but the section must name an actual numeric
+    exit code — not merely contain the word.
+    """
+    sections = command_sections()
+    missing = []
+    for name, body in sections.items():
+        stated = [
+            line
+            for line in body.splitlines()
+            if re.search(r"exit", line, re.IGNORECASE) and re.search(r"\b[0-9]\b", line)
+        ]
+        if not stated:
+            missing.append(name)
+    assert not missing, (
+        "these command sections never state a numeric exit code: "
+        + ", ".join(sorted(missing))
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -112,18 +170,52 @@ def mcp_tools():
     return mcp.TOOLS
 
 
-def test_every_mcp_tool_is_documented_with_its_arguments():
+def mcp_table_rows() -> dict[str, str]:
+    """The MCP tool table on the Agents page, one row per tool.
+
+    Checking the whole file let `paths`, `profile` and `strict` pass because the
+    GitHub Action's inputs table also contains them. The arguments must be in the
+    *tool's own row*.
+    """
     agents = read("docs", "agents.md")
+    rows: dict[str, str] = {}
+    for line in agents.splitlines():
+        match = re.match(r"\|\s*`(tos_[a-z_]+)`\s*\|([^|]*)\|", line)
+        if match:
+            rows[match.group(1)] = match.group(2)
+    return rows
+
+
+def test_every_mcp_tool_is_documented_with_its_arguments():
+    rows = mcp_table_rows()
     missing: list[str] = []
     for tool in mcp_tools():
         name = tool["name"]
-        if name not in agents:
-            missing.append(f"tool {name}")
+        if name not in rows:
+            missing.append(f"tool {name} is not a row in the MCP table")
             continue
+        cell = rows[name]
         for prop in tool["inputSchema"].get("properties", {}):
-            if f"`{prop}`" not in agents:
-                missing.append(f"{name} argument {prop}")
+            if f"`{prop}`" not in cell:
+                missing.append(f"{name} row does not list argument {prop}")
     assert not missing, "undocumented MCP surface:\n  " + "\n  ".join(missing)
+
+
+def test_mcp_documents_every_error_code_it_can_return():
+    """The protocol section must name each JSON-RPC error the server can emit."""
+    import sys
+
+    sys.path.insert(0, str(ROOT / "src"))
+    from tos_toolkit import mcp
+
+    commands = read("docs", "commands.md")
+    for code, label in [
+        (mcp.PARSE_ERROR, "parse error"),
+        (mcp.INVALID_REQUEST, "invalid request"),
+        (mcp.METHOD_NOT_FOUND, "method not found"),
+        (mcp.INVALID_PARAMS, "invalid parameters"),
+    ]:
+        assert str(code) in commands, f"error code {code} ({label}) is undocumented"
 
 
 def test_mcp_is_reachable_from_the_command_reference():
@@ -172,23 +264,46 @@ def test_every_diagnostic_code_is_in_the_rules_reference():
 
 
 def test_every_toml_key_is_documented():
-    configuration = read("docs", "configuration.md")
-    missing: list[str] = []
+    """Every key a user can write must be documented, from every source of keys.
 
-    data = tomllib.loads(read("pyproject.toml"))
-    assert data  # pyproject parses; the profiles below are the documented surface
+    The profile files alone are not the surface: `[parser]`, `[review]`,
+    `kind_dirs` and `templates_dir` never appear in them.
+    """
+    configuration = read("docs", "configuration.md")
+    keys: set[str] = set()
 
     for profile in sorted((ROOT / "src" / "tos_toolkit" / "data" / "profiles").glob("*.toml")):
-        parsed = tomllib.loads(profile.read_text(encoding="utf-8"))
-        for section, values in parsed.items():
-            for key in values:
-                if f"`{key}`" not in configuration and f"{key} =" not in configuration:
-                    missing.append(f"{section}.{key}")
+        for section, values in tomllib.loads(profile.read_text(encoding="utf-8")).items():
+            keys.update(f"{section}.{key}" for key in values)
 
-    assert not missing, (
-        "tos.toml keys not documented in docs/configuration.md:\n  "
-        + "\n  ".join(sorted(set(missing)))
+    # Keys read by config.load() but absent from every profile.
+    from_source = read("src", "tos_toolkit", "config.py")
+    for section_key in re.findall(r'section\.get\("([a-z_]+)"', from_source):
+        keys.add(section_key)
+    for section in ("project", "header", "parser", "review", "checks"):
+        for literal in re.findall(rf'if "([a-z_]+)" in {section}:', from_source):
+            keys.add(f"{section}.{literal}")
+
+    # The generated template is the example every user starts from.
+    keys.update(
+        f"project.{key}" for key in re.findall(r"^templates_dir", read("src", "tos_toolkit", "scaffold.py"), re.M)
     )
+
+    missing = sorted(
+        key
+        for key in keys
+        if key.split(".", 1)[-1] not in configuration
+        and f"`{key}`" not in configuration
+    )
+    assert not missing, (
+        "tos.toml keys not documented in docs/configuration.md:\n  " + "\n  ".join(missing)
+    )
+
+
+def test_configuration_documents_every_section():
+    configuration = read("docs", "configuration.md")
+    for section in ("[profile]", "[project]", "[header]", "[parser]", "[review]", "[checks]"):
+        assert section in configuration, f"docs/configuration.md never shows {section}"
 
 
 def test_rules_reference_states_the_layer_of_every_group():

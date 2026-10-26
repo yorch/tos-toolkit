@@ -205,7 +205,15 @@ def _write(path: Path, body: str, force: bool) -> bool:
 
 
 def init_project(root: Path, profile: str = "strict", force: bool = False) -> int:
-    from .config import KIND_DIRS_DEFAULT
+    from .config import KIND_DIRS_DEFAULT, PROFILE_DIR
+
+    # Writing an unknown profile name produces a tos.toml that makes every later
+    # command exit 2, so refuse at the point of the mistake.
+    available = sorted(p.stem for p in PROFILE_DIR.glob("*.toml"))
+    if profile not in available:
+        raise SystemExit(
+            f"error: unknown profile '{profile}' (available: {', '.join(available)})"
+        )
 
     header_mode = "off" if profile == "loose" else "required"
 

@@ -11,10 +11,16 @@ about the part that cannot:
 $ tos lint                  # structural checks — no thinkorswim needed
 $ tos syntax-check          # real grammar check — needs a local thinkorswim
 $ tos review --mode diff    # adversarial AI review of your changes
+$ tos mcp                   # serve the toolkit to a coding assistant (MCP, stdio)
 ```
 
 Everything except `syntax-check` runs on a bare Python install with no
 thinkorswim anywhere in sight.
+
+**Reference:** [Commands](docs/commands.md) · [Configuration](docs/configuration.md) ·
+[Rules](docs/rules.md) · [Installing and publishing](docs/publishing.md) ·
+[Adopting it](docs/consuming.md) · [Agents and CI](docs/agents.md) ·
+[Architecture](docs/architecture.md)
 
 ---
 

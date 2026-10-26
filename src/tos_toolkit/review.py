@@ -68,8 +68,14 @@ def _is_repo(root: Path) -> bool:
     return True
 
 
-def _inlined_files(root: Path, files: list[Path]) -> str:
+def _inlined_files(root: Path, files: list[Path]) -> tuple[str, list[str]]:
+    """Inline the files under review, and report any that were left out.
+
+    A file dropped for size means the reviewer never saw it, so a PASS cannot be
+    trusted — the caller turns this into exit 2 rather than a green gate.
+    """
     chunks: list[str] = []
+    skipped: list[str] = []
     total = 0
     for path in files:
         try:
@@ -79,10 +85,11 @@ def _inlined_files(root: Path, files: list[Path]) -> str:
             continue
         if total + len(body) > MAX_INLINE_CHARS:
             chunks.append(f"--- {path.name} (skipped, size budget) ---\n")
+            skipped.append(str(path))
             continue
         total += len(body)
         chunks.append(f"--- {path} ---\n{body}\n")
-    return "\n".join(chunks)
+    return "\n".join(chunks), skipped
 
 
 def _scope(root: Path, mode: str, paths: list[str]) -> str:
@@ -116,7 +123,14 @@ def _scope(root: Path, mode: str, paths: list[str]) -> str:
                 raise ReviewUnavailable(f"path not found: {raw}")
         if not selected:
             raise ReviewUnavailable("no reviewable files matched")
-        return "### files under review\n\n" + _inlined_files(root, selected)
+        text, skipped = _inlined_files(root, selected)
+        if skipped:
+            raise ReviewUnavailable(
+                "too large to review in one call (size budget): "
+                + ", ".join(skipped)
+                + "\nReview fewer files at a time — a PASS that never saw these is worthless."
+            )
+        return "### files under review\n\n" + text
 
     if not _is_repo(root):
         raise ReviewUnavailable(f"{root} is not a git repository")
@@ -134,7 +148,14 @@ def _scope(root: Path, mode: str, paths: list[str]) -> str:
     untracked = [
         root / name for name in untracked_out.splitlines() if name.strip()
     ]
-    parts += ["\n### untracked file contents\n", _inlined_files(root, untracked)]
+    untracked_text, skipped = _inlined_files(root, untracked)
+    parts += ["\n### untracked file contents\n", untracked_text]
+    if skipped:
+        parts.append(
+            "\n### WARNING: not reviewed (size budget)\n"
+            + "".join(f"- {path}\n" for path in skipped)
+            + "\nA verdict that did not see these files is incomplete.\n"
+        )
     return "".join(parts)
 
 

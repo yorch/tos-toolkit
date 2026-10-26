@@ -78,12 +78,22 @@ repo:
 
 Lists are **replaced**, not merged, so state the full set when you override one.
 
-`mode` gates **header validation** (`header.py`) and **layout/naming**
-(`layout.py`). It does not disable header *parsing*: if a file declares
-`@kind`, the artifact rules (`E401`–`E405`) and the header-derived honesty rules
-(`E031`, `E050`, `W050`) still apply, because they describe how the platform will
-behave rather than how your repo is organised. A file with no header has no
-declared kind, so none of those fire either.
+`mode` gates **header validation** (`E101`–`E104`, `W101`–`W104`), **layout and
+naming** (`E120`, `W080`, `W081`), and `E050` — which reads `@assets`, a key that
+only exists in a header.
+
+It does not gate the rules that describe platform behaviour. Those run whatever
+the mode, but each needs the key it reads:
+
+| Rule | Runs when |
+| --- | --- |
+| `E401`–`E407` (artifact restrictions) | always — the kind comes from the configured directory, so a header is not required |
+| `E031` (missing `declare`) | the header declares `@kind: study` or `strategy` |
+| `W050` (repaint honesty) | the header declares `@repaints` |
+
+That is why a headerless `scans/foo.thinkscript` calling `AddLabel` still gets
+`E401` under `loose`: the platform restriction does not depend on the file
+documenting itself.
 
 ---
 
@@ -96,8 +106,9 @@ headers until you change that key. To actually get language-only behaviour, set
 the profile *in the file*.
 
 A profile with no `targets` (as `loose` has) checks nothing unless you pass paths
-or add targets — `tos --profile loose lint` in an unconfigured directory reports
-"no target directories" and exits 0.
+or add targets. `tos --profile loose lint` in an unconfigured directory reports
+"no target directories" and **exits 2**, because a run that checked nothing must
+not look like a pass (`--allow-empty` opts out).
 
 ## Rule levels
 

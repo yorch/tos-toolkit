@@ -36,7 +36,7 @@ $ tos mcp
 | `tos_lint` | `paths`, `profile`, `strict` | Static analysis. Returns structured findings with `file`, `line`, `code`, `severity`, `hint`. |
 | `tos_explain` | `name` | Is this function real? Returns the category and a confidence level. |
 | `tos_docs` | `topic`, `grep` | The bundled reference: list topics, read one, or search. |
-| `tos_syntax_check` | `paths` | Grammar check via a local thinkorswim install. Reports *unavailable* rather than failing when ToS is absent. |
+| `tos_syntax_check` | `paths` | Grammar check via a local thinkorswim install. When ToS or a JDK is absent it returns `isError: true` explaining that the check could not run — not a pass. |
 
 `paths` accepts files or directories and defaults to the configured targets.
 `profile` is `strict` or `loose`. `topic` must name a bundled topic (an arbitrary
@@ -103,8 +103,8 @@ jobs:
 
 | Input | Default | Notes |
 | --- | --- | --- |
-| `paths` | `.` | Space separated. Point it at your artifact directories. |
-| `profile` | `strict` | `loose` for a corpus without header conventions. |
+| `paths` | `.` | Space separated. **Point it at your artifact directories.** The default walks the whole repository; vendor and build directories are skipped, but a repo that also contains TypeScript will still trip `E005` on its own `.ts` files. |
+| `profile` | `strict` | `loose` for a corpus without header conventions. Note that a project's own `tos.toml` still applies on top, so a `tos.toml` written by `tos init` keeps requiring headers even under `loose`. |
 | `version` | `latest` | **Pin it.** A new rule can fail a green build. |
 | `strict` | `false` | Treat warnings as failures. |
 | `annotations` | `true` | Inline markers. Set `false` for a plain log. |
