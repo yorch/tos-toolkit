@@ -10,7 +10,7 @@
 
 ## Scans (scans/)
 
-- Filter for the ToS Scanner. Ends in a boolean `plot`.
+- Filter for the ToS Scanner. Exposes a boolean `plot` (position does not matter).
 - No chart-only functions: AddLabel, AddChartBubble, AddCloud, AddArrow,
   AddVerticalLine, AssignPriceColor, AssignBackgroundColor.
 - No `declare upper` or `declare lower`.
@@ -24,7 +24,8 @@
 ## Columns (columns/)
 
 - Custom watchlist column. One value per symbol.
-- Exactly one value `plot`.
+- One output: a value `plot`, or an `AddLabel` for formatted text. Custom
+  quotes sort alphanumerically when the output is text.
 - `AssignBackgroundColor` and `AddLabel` are the only drawing calls.
 - No AddChartBubble, AddCloud, AddArrow, AddVerticalLine, AssignPriceColor.
 - Columns render as text; format precision yourself.

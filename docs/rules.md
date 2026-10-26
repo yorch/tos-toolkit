@@ -136,12 +136,12 @@ These are the platform's rules, not ours.
 | `E401` | error | chart-only function inside a scan |
 | `E402` | error | function unavailable in a watchlist column |
 | `E403` | error | a scan with no `plot` at all |
-| `E404` | error | a column with no output at all (neither a `plot` nor an `AddLabel`) |
+| `E404` | error | a column with no output (neither a `plot` nor an `AddLabel`) |
 | `E405` | error | `declare upper/lower` in a scan or column |
 | `W401` | warn | strategy with no `AddOrder` |
 | `W402` | warn | scan plot is a constant (any nonzero number counts), so every symbol matches |
 | `E406` | error | scan exposes more than one plot |
-| `E407` | error | scan reads a secondary aggregation |
+| `E407` | error | scan passes `period = …` (a secondary aggregation) |
 
 `AddLabel` and `AssignBackgroundColor` **are** legal in columns; the other drawing
 functions are not. Function names are matched case-insensitively, because

@@ -601,3 +601,40 @@ def test_scan_without_any_plot_is_e403(tmp_path):
     text = SCAN.replace("plot Scan = close > avg;", "def Scan = close > avg;")
     findings = _findings(tmp_path, text, subdir="scans", filename="sample_scan.thinkscript")
     assert "E403" in codes(findings)
+
+
+def test_secondary_aggregation_forms(tmp_path):
+    """period= is caught in string and case-insensitive forms."""
+    for form in ('close(period = "Week")', "close(period = aggregationperiod.WEEK)"):
+        text = SCAN.replace("plot Scan = close > avg;", f"plot Scan = close > {form};")
+        findings = _findings(tmp_path, text, subdir="scans", filename="sample_scan.thinkscript")
+        assert "E407" in codes(findings), form
+
+
+def test_get_aggregation_period_is_not_a_secondary_read(tmp_path):
+    text = SCAN.replace(
+        "plot Scan = close > avg;", "plot Scan = GetAggregationPeriod() >= 60000;"
+    )
+    findings = _findings(tmp_path, text, subdir="scans", filename="sample_scan.thinkscript")
+    assert "E407" not in codes(findings)
+
+
+def test_input_named_period_is_not_a_secondary_read(tmp_path):
+    text = SCAN.replace(
+        "plot Scan = close > avg;", "plot Scan = close > Average(close, length);"
+    ).replace("input length = 14;", "input period = 14;\ninput length = 14;")
+    findings = _findings(tmp_path, text, subdir="scans", filename="sample_scan.thinkscript")
+    assert "E407" not in codes(findings)
+
+
+def test_split_plot_assignment_has_no_bare_assignment_warning(tmp_path):
+    """`plot Scan; Scan = …;` is documented, so E073 must not fire."""
+    text = SCAN.replace("plot Scan = close > avg;", "plot Scan;\nScan = close > avg;")
+    findings = _findings(tmp_path, text, subdir="scans", filename="sample_scan.thinkscript")
+    assert findings == [], [(f.code, f.message) for f in findings]
+
+
+def test_split_plot_assignment_constant_warns(tmp_path):
+    text = SCAN.replace("plot Scan = close > avg;", "plot Scan;\nScan = 2;")
+    findings = _findings(tmp_path, text, subdir="scans", filename="sample_scan.thinkscript")
+    assert "W402" in codes(findings)

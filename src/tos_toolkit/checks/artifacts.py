@@ -92,24 +92,55 @@ def _declares_panel(ctx) -> list[int]:
     return lines
 
 
+def _secondary_aggregation_lines(ctx) -> list[int]:
+    """Lines where a call passes `period = …`, i.e. requests another timeframe."""
+    lines: list[int] = []
+    for statement in ctx.statements:
+        tokens = statement.tokens
+        for index, token in enumerate(tokens[:-1]):
+            if token.kind is not Kind.IDENT or token.lower != "period":
+                continue
+            # Must be inside a call, not `input period = 20;` at statement level.
+            if token.depth < 1:
+                continue
+            if tokens[index + 1].kind is Kind.OP and tokens[index + 1].value == "=":
+                lines.append(token.line)
+    return sorted(set(lines))
+
+
+def _plot_names(ctx) -> dict[str, int]:
+    """Declared plot names, lowercased, mapped to their declaration line."""
+    names: dict[str, int] = {}
+    for statement in ctx.statements:
+        if statement.keyword != "plot":
+            continue
+        for token in statement.tokens[1:]:
+            if token.kind is Kind.IDENT:
+                names.setdefault(token.lower, token.line)
+                break
+    return names
+
+
 def _scan(ctx) -> list[Finding]:
     out: list[Finding] = []
 
     # A scanner filter is evaluated on the chart's own aggregation; reading a
     # second timeframe is not supported there, even though it works on a chart.
-    for line_no, line in enumerate(ctx.masked_lines(), start=1):
-        if "AggregationPeriod" in line:
-            out.append(
-                ctx.finding(
-                    "E407",
-                    line_no,
-                    "a scan cannot read a secondary aggregation",
-                    hint=(
-                        "AggregationPeriod works on a chart but not in a Stock "
-                        "Hacker filter. Move the logic to a daily chart."
-                    ),
-                )
+    # Detected from the `period=` argument inside a call, so it catches string
+    # and case-insensitive forms, and does not fire on GetAggregationPeriod(),
+    # which reports the current period rather than requesting another.
+    for line_no in _secondary_aggregation_lines(ctx):
+        out.append(
+            ctx.finding(
+                "E407",
+                line_no,
+                "a scan cannot read a secondary aggregation",
+                hint=(
+                    "A period= argument works on a chart but not in a Stock Hacker "
+                    "filter. Move the logic to a chart at that aggregation."
+                ),
             )
+        )
     for name, line in _calls(ctx):
         if name.lower() in CHART_ONLY_LOWER:
             out.append(
@@ -152,6 +183,7 @@ def _scan(ctx) -> list[Finding]:
         )
         return [item for item in out if item is not None]
 
+    declared = _plot_names(ctx)
     for plot in plots:
         values = [t.value for t in plot.tokens if t.kind is not Kind.SEMI]
         if "=" in values:
@@ -164,6 +196,26 @@ def _scan(ctx) -> list[Finding]:
                         "scan plot is a constant; every symbol matches",
                     )
                 )
+
+    # `plot Scan;` followed by `Scan = …;` is documented, so the constant value
+    # can arrive as a separate assignment. Resolve it before judging.
+    for statement in ctx.statements:
+        tokens = statement.tokens
+        if len(tokens) < 3:
+            continue
+        if tokens[0].kind is not Kind.IDENT or tokens[0].lower not in declared:
+            continue
+        if not (tokens[1].kind is Kind.OP and tokens[1].value == "="):
+            continue
+        rhs = [t.value for t in tokens[2:] if t.kind is not Kind.SEMI]
+        if _is_always_true(rhs):
+            out.append(
+                ctx.finding(
+                    "W402",
+                    statement.start_line,
+                    "scan plot is a constant; every symbol matches",
+                )
+            )
     return [item for item in out if item is not None]
 
 
