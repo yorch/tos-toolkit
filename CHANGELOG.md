@@ -8,6 +8,35 @@ rule can turn a previously green build red. Pin a version in CI.
 
 ## [Unreleased]
 
+## [0.2.2] — 2026-10-26
+
+### Fixed
+
+- **Registry gaps that caused correct code to be rewritten.** Building the futures
+  studies, the review gate removed `RegularTradingStart`/`RegularTradingEnd`
+  because the registry did not know them — ten `E072` warnings. They are real: the
+  thinkorswim reference carries a page for each, and the official `GetTime` example
+  is built on them. A registry gap became a code regression, which is the wrong
+  direction for this project.
+
+  Added, each with its reference URL recorded in the entry:
+  `RegularTradingStart`, `RegularTradingEnd`, `GetTime`, `HasContractChangeEvent`.
+
+- `ATR` was recorded as `documented` but has **no page in the reference index**
+  (404, checked against the live site). Downgraded to `unverified`, with the
+  substitute spelled out: `WildersAverage(TrueRange(high, close, low), len)`.
+- `Root` likewise: no page at any `Functions/*` category. Downgraded, with a note
+  not to rely on it.
+- `TrueRange` now records its three-argument signature and the verified page.
+
+### Notes
+
+Verification method, recorded because it nearly produced a false alarm: the
+reference index is a single-page app that answers **200 with an `error_404` shell**
+for routes that do not exist. Real pages are ~345 KB; missing ones are 25 KB. The
+date/time category is spelled `Date---Time` (three dashes), not `Date-Time` — the
+latter 404s for every function in it.
+
 ### Added
 
 - The repository now lints itself: `tos.toml` at the root points `targets` at the

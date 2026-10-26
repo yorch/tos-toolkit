@@ -1,73 +1,370 @@
 {
   "_comment": "Curated function registry. confidence: verified | documented | unverified. Unknown names are reported by tos lint (default: warn).",
   "functions": [
-    {"name": "AbsValue", "category": "math", "confidence": "documented"},
-    {"name": "AddCloud", "category": "drawing", "confidence": "verified"},
-    {"name": "AddChartBubble", "category": "drawing", "confidence": "documented"},
-    {"name": "AddLabel", "category": "drawing", "confidence": "verified"},
-    {"name": "AddOrder", "category": "strategy", "confidence": "documented"},
-    {"name": "AddVerticalLine", "category": "drawing", "confidence": "documented"},
-    {"name": "Alert", "category": "alert", "confidence": "documented"},
-    {"name": "AssignBackgroundColor", "category": "drawing", "confidence": "documented"},
-    {"name": "AssignPriceColor", "category": "drawing", "confidence": "documented"},
-    {"name": "ATR", "category": "volatility", "confidence": "documented"},
-    {"name": "Average", "category": "average", "confidence": "verified"},
-    {"name": "BarNumber", "category": "state", "confidence": "documented"},
-    {"name": "Ceil", "category": "math", "confidence": "documented"},
-    {"name": "close", "category": "price", "confidence": "verified"},
-    {"name": "CompoundValue", "category": "state", "confidence": "documented"},
-    {"name": "Cos", "category": "math", "confidence": "documented"},
-    {"name": "Exp", "category": "math", "confidence": "documented"},
-    {"name": "ExpAverage", "category": "average", "confidence": "verified"},
-    {"name": "Floor", "category": "math", "confidence": "documented"},
-    {"name": "fold", "category": "reserved", "confidence": "documented", "notes": "reserved word, not a call"},
-    {"name": "GetAggregationPeriod", "category": "time", "confidence": "unverified"},
-    {"name": "GetATMOption", "category": "option", "confidence": "unverified"},
-    {"name": "GetDaysToExpiration", "category": "option", "confidence": "unverified"},
-    {"name": "GetExpirationDate", "category": "option", "confidence": "unverified"},
-    {"name": "GetNextOTMOption", "category": "option", "confidence": "unverified"},
-    {"name": "GetStrike", "category": "option", "confidence": "documented"},
-    {"name": "GetTime", "category": "time", "confidence": "documented"},
-    {"name": "GetUnderlyingSymbol", "category": "option", "confidence": "documented"},
-    {"name": "GetValue", "category": "state", "confidence": "documented"},
-    {"name": "GetYYYYMMDD", "category": "time", "confidence": "documented"},
-    {"name": "HasOption", "category": "option", "confidence": "unverified", "notes": "internal API only; prefer IsOptionable"},
-    {"name": "high", "category": "price", "confidence": "verified"},
-    {"name": "Highest", "category": "window", "confidence": "documented"},
-    {"name": "hl2", "category": "price", "confidence": "documented"},
-    {"name": "hlc3", "category": "price", "confidence": "verified"},
-    {"name": "If", "category": "logic", "confidence": "documented"},
-    {"name": "IsCall", "category": "option", "confidence": "unverified"},
-    {"name": "IsNaN", "category": "state", "confidence": "verified"},
-    {"name": "IsOptionable", "category": "option", "confidence": "documented"},
-    {"name": "IsPut", "category": "option", "confidence": "unverified"},
-    {"name": "Log", "category": "math", "confidence": "documented"},
-    {"name": "low", "category": "price", "confidence": "verified"},
-    {"name": "Lowest", "category": "window", "confidence": "documented"},
-    {"name": "Max", "category": "math", "confidence": "verified"},
-    {"name": "Min", "category": "math", "confidence": "verified"},
-    {"name": "MovingAverage", "category": "average", "confidence": "documented"},
-    {"name": "ohlc4", "category": "price", "confidence": "documented"},
-    {"name": "open", "category": "price", "confidence": "verified"},
-    {"name": "Power", "category": "math", "confidence": "documented"},
-    {"name": "Random", "category": "math", "confidence": "unverified"},
-    {"name": "Root", "category": "future", "confidence": "unverified"},
-    {"name": "Round", "category": "math", "confidence": "verified"},
-    {"name": "SecondsFromTime", "category": "time", "confidence": "verified"},
-    {"name": "SecondsTillTime", "category": "time", "confidence": "verified"},
-    {"name": "Sign", "category": "math", "confidence": "documented"},
-    {"name": "Sin", "category": "math", "confidence": "documented"},
-    {"name": "Sqrt", "category": "math", "confidence": "verified"},
-    {"name": "SquareRoot", "category": "math", "confidence": "unverified"},
-    {"name": "StdDev", "category": "window", "confidence": "documented"},
-    {"name": "Sum", "category": "window", "confidence": "verified"},
-    {"name": "Tan", "category": "math", "confidence": "documented"},
-    {"name": "TotalSum", "category": "window", "confidence": "documented"},
-    {"name": "TrueRange", "category": "volatility", "confidence": "verified", "notes": "TrueRange(high, close, low) - three required arguments"},
-    {"name": "volume", "category": "price", "confidence": "verified"},
-    {"name": "VWAP", "category": "volume", "confidence": "unverified"},
-    {"name": "WeightedAverage", "category": "average", "confidence": "unverified"},
-    {"name": "WildersSmoothing", "category": "average", "confidence": "unverified"},
-    {"name": "WildersAverage", "category": "average", "confidence": "unverified"}
+    {
+      "name": "AbsValue",
+      "category": "math",
+      "confidence": "documented"
+    },
+    {
+      "name": "AddChartBubble",
+      "category": "drawing",
+      "confidence": "documented"
+    },
+    {
+      "name": "AddCloud",
+      "category": "drawing",
+      "confidence": "verified"
+    },
+    {
+      "name": "AddLabel",
+      "category": "drawing",
+      "confidence": "verified"
+    },
+    {
+      "name": "AddOrder",
+      "category": "strategy",
+      "confidence": "documented"
+    },
+    {
+      "name": "AddVerticalLine",
+      "category": "drawing",
+      "confidence": "documented"
+    },
+    {
+      "name": "Alert",
+      "category": "alert",
+      "confidence": "documented"
+    },
+    {
+      "name": "AssignBackgroundColor",
+      "category": "drawing",
+      "confidence": "documented"
+    },
+    {
+      "name": "AssignPriceColor",
+      "category": "drawing",
+      "confidence": "documented"
+    },
+    {
+      "name": "ATR",
+      "category": "volatility",
+      "confidence": "unverified",
+      "notes": "Absent from the thinkorswim reference index (404, checked 2026-10-26). Use WildersAverage(TrueRange(high, close, low), len) instead."
+    },
+    {
+      "name": "Average",
+      "category": "average",
+      "confidence": "verified"
+    },
+    {
+      "name": "BarNumber",
+      "category": "state",
+      "confidence": "documented"
+    },
+    {
+      "name": "Ceil",
+      "category": "math",
+      "confidence": "documented"
+    },
+    {
+      "name": "close",
+      "category": "price",
+      "confidence": "verified"
+    },
+    {
+      "name": "CompoundValue",
+      "category": "state",
+      "confidence": "documented"
+    },
+    {
+      "name": "Cos",
+      "category": "math",
+      "confidence": "documented"
+    },
+    {
+      "name": "Exp",
+      "category": "math",
+      "confidence": "documented"
+    },
+    {
+      "name": "ExpAverage",
+      "category": "average",
+      "confidence": "verified"
+    },
+    {
+      "name": "Floor",
+      "category": "math",
+      "confidence": "documented"
+    },
+    {
+      "name": "fold",
+      "category": "reserved",
+      "confidence": "documented",
+      "notes": "reserved word, not a call"
+    },
+    {
+      "name": "GetAggregationPeriod",
+      "category": "time",
+      "confidence": "unverified"
+    },
+    {
+      "name": "GetATMOption",
+      "category": "option",
+      "confidence": "unverified"
+    },
+    {
+      "name": "GetDaysToExpiration",
+      "category": "option",
+      "confidence": "unverified"
+    },
+    {
+      "name": "GetExpirationDate",
+      "category": "option",
+      "confidence": "unverified"
+    },
+    {
+      "name": "GetNextOTMOption",
+      "category": "option",
+      "confidence": "unverified"
+    },
+    {
+      "name": "GetStrike",
+      "category": "option",
+      "confidence": "documented"
+    },
+    {
+      "name": "GetTime",
+      "category": "time",
+      "confidence": "documented",
+      "notes": "https://toslc.thinkorswim.com/center/reference/thinkScript/Functions/Date---Time/GetTime - current bar time; the reference example compares it against RegularTradingStart"
+    },
+    {
+      "name": "GetUnderlyingSymbol",
+      "category": "option",
+      "confidence": "documented"
+    },
+    {
+      "name": "GetValue",
+      "category": "state",
+      "confidence": "documented"
+    },
+    {
+      "name": "GetYYYYMMDD",
+      "category": "time",
+      "confidence": "documented"
+    },
+    {
+      "name": "HasContractChangeEvent",
+      "category": "future",
+      "confidence": "documented",
+      "notes": "https://toslc.thinkorswim.com/center/reference/thinkScript/Functions/Others/HasContractChangeEvent - futures contract rollover event; page verified 2026-10-26"
+    },
+    {
+      "name": "HasOption",
+      "category": "option",
+      "confidence": "unverified",
+      "notes": "internal API only; prefer IsOptionable"
+    },
+    {
+      "name": "high",
+      "category": "price",
+      "confidence": "verified"
+    },
+    {
+      "name": "Highest",
+      "category": "window",
+      "confidence": "documented"
+    },
+    {
+      "name": "hl2",
+      "category": "price",
+      "confidence": "documented"
+    },
+    {
+      "name": "hlc3",
+      "category": "price",
+      "confidence": "verified"
+    },
+    {
+      "name": "If",
+      "category": "logic",
+      "confidence": "documented"
+    },
+    {
+      "name": "IsCall",
+      "category": "option",
+      "confidence": "unverified"
+    },
+    {
+      "name": "IsNaN",
+      "category": "state",
+      "confidence": "verified"
+    },
+    {
+      "name": "IsOptionable",
+      "category": "option",
+      "confidence": "documented"
+    },
+    {
+      "name": "IsPut",
+      "category": "option",
+      "confidence": "unverified"
+    },
+    {
+      "name": "Log",
+      "category": "math",
+      "confidence": "documented"
+    },
+    {
+      "name": "low",
+      "category": "price",
+      "confidence": "verified"
+    },
+    {
+      "name": "Lowest",
+      "category": "window",
+      "confidence": "documented"
+    },
+    {
+      "name": "Max",
+      "category": "math",
+      "confidence": "verified"
+    },
+    {
+      "name": "Min",
+      "category": "math",
+      "confidence": "verified"
+    },
+    {
+      "name": "MovingAverage",
+      "category": "average",
+      "confidence": "documented"
+    },
+    {
+      "name": "ohlc4",
+      "category": "price",
+      "confidence": "documented"
+    },
+    {
+      "name": "open",
+      "category": "price",
+      "confidence": "verified"
+    },
+    {
+      "name": "Power",
+      "category": "math",
+      "confidence": "documented"
+    },
+    {
+      "name": "Random",
+      "category": "math",
+      "confidence": "unverified"
+    },
+    {
+      "name": "RegularTradingEnd",
+      "category": "time",
+      "confidence": "documented",
+      "notes": "https://toslc.thinkorswim.com/center/reference/thinkScript/Functions/Date---Time/RegularTradingEnd - mirrors RegularTradingStart; page verified 2026-10-26"
+    },
+    {
+      "name": "RegularTradingStart",
+      "category": "time",
+      "confidence": "documented",
+      "notes": "https://toslc.thinkorswim.com/center/reference/thinkScript/Functions/Date---Time/RegularTradingStart - milliseconds of the session start for a date; page verified 2026-10-26"
+    },
+    {
+      "name": "Root",
+      "category": "future",
+      "confidence": "unverified",
+      "notes": "No reference page found at any Functions/* category (404, checked 2026-10-26). Do not rely on it."
+    },
+    {
+      "name": "Round",
+      "category": "math",
+      "confidence": "verified"
+    },
+    {
+      "name": "SecondsFromTime",
+      "category": "time",
+      "confidence": "verified"
+    },
+    {
+      "name": "SecondsTillTime",
+      "category": "time",
+      "confidence": "verified"
+    },
+    {
+      "name": "Sign",
+      "category": "math",
+      "confidence": "documented"
+    },
+    {
+      "name": "Sin",
+      "category": "math",
+      "confidence": "documented"
+    },
+    {
+      "name": "Sqrt",
+      "category": "math",
+      "confidence": "verified"
+    },
+    {
+      "name": "SquareRoot",
+      "category": "math",
+      "confidence": "unverified"
+    },
+    {
+      "name": "StdDev",
+      "category": "window",
+      "confidence": "documented"
+    },
+    {
+      "name": "Sum",
+      "category": "window",
+      "confidence": "verified"
+    },
+    {
+      "name": "Tan",
+      "category": "math",
+      "confidence": "documented"
+    },
+    {
+      "name": "TotalSum",
+      "category": "window",
+      "confidence": "documented"
+    },
+    {
+      "name": "TrueRange",
+      "category": "volatility",
+      "confidence": "documented",
+      "notes": "TrueRange(high, close, low) - three required arguments; reference page verified 2026-10-26"
+    },
+    {
+      "name": "volume",
+      "category": "price",
+      "confidence": "verified"
+    },
+    {
+      "name": "VWAP",
+      "category": "volume",
+      "confidence": "documented",
+      "notes": "https://toslc.thinkorswim.com/center/reference/thinkScript/Functions/Fundamentals/vwap(symbol, period, priceType) - aggregation-anchored, not session-anchored"
+    },
+    {
+      "name": "WeightedAverage",
+      "category": "average",
+      "confidence": "unverified"
+    },
+    {
+      "name": "WildersAverage",
+      "category": "average",
+      "confidence": "unverified"
+    },
+    {
+      "name": "WildersSmoothing",
+      "category": "average",
+      "confidence": "unverified"
+    }
   ]
 }

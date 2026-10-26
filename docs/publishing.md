@@ -52,12 +52,12 @@ $ pip install tos-toolkit
 $ uvx --from tos-toolkit tos lint   # run without installing
 ```
 
-Published: <https://pypi.org/project/tos-toolkit/> — current release `0.2.1`, MIT, no
+Published: <https://pypi.org/project/tos-toolkit/> — current release `0.2.2`, MIT, no
 runtime dependencies, OIDC attestations attached.
 
 History: `0.1.0` (first release) and `0.2.0`, which was superseded within minutes
 because the wheel reported the wrong `__version__`. `0.2.0` is not yanked — it
-installs fine — but pin `0.2.1` or later.
+installs fine — but pin `0.2.2` or later.
 
 ### The optional grammar check
 
@@ -117,8 +117,8 @@ version published there is **not** consumed by `pip install`.
 ### Cutting a release
 
 ```console
-$ git tag -a v0.2.1 -m "v0.2.1"
-$ git push origin v0.2.1
+$ git tag -a v0.2.2 -m "v0.2.2"
+$ git push origin v0.2.2
 ```
 
 The `Release` workflow then:
