@@ -566,3 +566,38 @@ def test_column_identifier_named_addlabel_is_not_output(tmp_path):
     text = COLUMN.replace("plot Value = close - avg;", "def AddLabel = close;")
     findings = _findings(tmp_path, text, subdir="columns", filename="sample_col.thinkscript")
     assert "E404" in codes(findings)
+
+
+def test_scan_cannot_use_secondary_aggregation(tmp_path):
+    text = SCAN.replace(
+        "plot Scan = close > avg;",
+        "plot Scan = close > close(period = AggregationPeriod.WEEK);",
+    )
+    findings = _findings(tmp_path, text, subdir="scans", filename="sample_scan.thinkscript")
+    assert "E407" in codes(findings)
+
+
+def test_nonzero_numeric_constant_always_true(tmp_path):
+    for rhs in ("2", "1", "(5)"):
+        text = SCAN.replace("plot Scan = close > avg;", f"plot Scan = {rhs};")
+        findings = _findings(tmp_path, text, subdir="scans", filename="sample_scan.thinkscript")
+        assert "W402" in codes(findings), rhs
+
+
+def test_zero_numeric_constant_is_not_flagged(tmp_path):
+    text = SCAN.replace("plot Scan = close > avg;", "plot Scan = 0;")
+    findings = _findings(tmp_path, text, subdir="scans", filename="sample_scan.thinkscript")
+    assert "W402" not in codes(findings)
+
+
+def test_plot_declared_then_assigned_is_allowed(tmp_path):
+    """`plot Scan; Scan = …;` is a documented form; only the plot matters."""
+    text = SCAN.replace("plot Scan = close > avg;", "plot Scan;\nScan = close > avg;")
+    findings = _findings(tmp_path, text, subdir="scans", filename="sample_scan.thinkscript")
+    assert "E403" not in codes(findings), codes(findings)
+
+
+def test_scan_without_any_plot_is_e403(tmp_path):
+    text = SCAN.replace("plot Scan = close > avg;", "def Scan = close > avg;")
+    findings = _findings(tmp_path, text, subdir="scans", filename="sample_scan.thinkscript")
+    assert "E403" in codes(findings)

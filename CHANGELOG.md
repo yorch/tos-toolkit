@@ -51,6 +51,13 @@ rule can turn a previously green build red. Pin a version in CI.
   three unverified constants were removed from the registry
   (`Alert.ONCE_PER_BAR`, `PaintingStrategy.NUMBER`, `PaintingStrategy.LINE_VS_PREV`).
 - `tos syntax-check` exits 2 when it checked nothing, like `lint`.
+- `E407` — a scan reading a secondary aggregation (`AggregationPeriod`), which a
+  chart supports and a Stock Hacker filter does not.
+- `W402` now treats any nonzero numeric literal as always-true, matching
+  ThinkScript's boolean conversion (`plot Scan = 2;` matched every symbol silently).
+- `E403` requires that a scan exposes a `plot`, not that the plot is the final
+  statement: `plot Scan; Scan = …;` is a documented form.
+- MCP reports `ok: true` only when at least one file was actually analysed.
 
 ## [0.1.0]
 

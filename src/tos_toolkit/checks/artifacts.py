@@ -94,6 +94,22 @@ def _declares_panel(ctx) -> list[int]:
 
 def _scan(ctx) -> list[Finding]:
     out: list[Finding] = []
+
+    # A scanner filter is evaluated on the chart's own aggregation; reading a
+    # second timeframe is not supported there, even though it works on a chart.
+    for line_no, line in enumerate(ctx.masked_lines(), start=1):
+        if "AggregationPeriod" in line:
+            out.append(
+                ctx.finding(
+                    "E407",
+                    line_no,
+                    "a scan cannot read a secondary aggregation",
+                    hint=(
+                        "AggregationPeriod works on a chart but not in a Stock "
+                        "Hacker filter. Move the logic to a daily chart."
+                    ),
+                )
+            )
     for name, line in _calls(ctx):
         if name.lower() in CHART_ONLY_LOWER:
             out.append(
@@ -121,35 +137,55 @@ def _scan(ctx) -> list[Finding]:
         )
 
     terminated = [s for s in ctx.statements if s.tokens]
-    if not terminated:
+    if not terminated or not plots:
+        # Schwab requires exactly one plot in a filter; it does not require that
+        # plot to be the physically last statement, so this checks for its
+        # presence rather than its position. `plot X;` followed by `X = …;` is a
+        # documented form and must not be rejected.
         out.append(
             ctx.finding(
                 "E403",
                 ctx.first_code_line or 1,
-                "a scan must end with a boolean 'plot'; this scan has no statements",
-            )
-        )
-        return [item for item in out if item is not None]
-    last = terminated[-1]
-    if last.keyword != "plot":
-        out.append(
-            ctx.finding(
-                "E403",
-                last.start_line,
-                "a scan must end with a boolean 'plot'",
+                "a scan needs a 'plot' to expose its result",
                 hint="The scanner returns every symbol where that plot is true.",
             )
         )
-    else:
-        values = [t.value for t in last.tokens if t.kind is not Kind.SEMI]
-        rhs = values[values.index("=") + 1 :] if "=" in values else []
-        if len(rhs) == 1 and rhs[0].lower() in {"1", "yes", "true"}:
-            out.append(
-                ctx.finding(
-                    "W402", last.start_line, "scan plot is a constant; every symbol matches"
+        return [item for item in out if item is not None]
+
+    for plot in plots:
+        values = [t.value for t in plot.tokens if t.kind is not Kind.SEMI]
+        if "=" in values:
+            rhs = values[values.index("=") + 1 :]
+            if _is_always_true(rhs):
+                out.append(
+                    ctx.finding(
+                        "W402",
+                        plot.start_line,
+                        "scan plot is a constant; every symbol matches",
+                    )
                 )
-            )
     return [item for item in out if item is not None]
+
+
+def _is_always_true(rhs: list[str]) -> bool:
+    """Whether a plot expression is a constant that is always true.
+
+    ThinkScript treats any nonzero number as true, so `plot Scan = 2;` matches
+    every symbol just as `yes` does.
+    """
+    text = "".join(rhs).strip()
+    # Peel balanced parentheses: `(5)` is the same constant as `5`.
+    while text.startswith("(") and text.endswith(")"):
+        inner = text[1:-1]
+        if inner.count("(") != inner.count(")"):
+            break
+        text = inner.strip()
+    if text.lower() in {"yes", "true"}:
+        return True
+    try:
+        return float(text) != 0
+    except ValueError:
+        return False
 
 
 def _column(ctx) -> list[Finding]:

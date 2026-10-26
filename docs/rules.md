@@ -135,19 +135,24 @@ These are the platform's rules, not ours.
 | --- | --- | --- |
 | `E401` | error | chart-only function inside a scan |
 | `E402` | error | function unavailable in a watchlist column |
-| `E403` | error | a scan whose last statement is not a `plot` |
+| `E403` | error | a scan with no `plot` at all |
 | `E404` | error | a column with no output at all (neither a `plot` nor an `AddLabel`) |
 | `E405` | error | `declare upper/lower` in a scan or column |
 | `W401` | warn | strategy with no `AddOrder` |
-| `W402` | warn | scan plot is a constant, so every symbol matches |
+| `W402` | warn | scan plot is a constant (any nonzero number counts), so every symbol matches |
 | `E406` | error | scan exposes more than one plot |
+| `E407` | error | scan reads a secondary aggregation |
 
 `AddLabel` and `AssignBackgroundColor` **are** legal in columns; the other drawing
 functions are not. Function names are matched case-insensitively, because
 ThinkScript identifiers are.
 
-`E403` checks that the last statement is a `plot`; it does not attempt to prove
-the expression is boolean-comparison shaped.
+`E403` checks that a scan exposes a `plot` somewhere, not that the plot is the
+last statement: `plot Scan;` followed by `Scan = …;` is documented and allowed.
+It does not attempt to prove the expression is boolean-comparison shaped.
+
+`E406` enforces Schwab's single-plot rule for Stock Hacker filters. `W402` treats
+any nonzero numeric literal as always-true, because ThinkScript does.
 
 `E406` enforces Schwab's documented rule that a Stock Hacker study filter carries
 exactly one plot. Two plots leaves the scanner using whichever it picks, which is

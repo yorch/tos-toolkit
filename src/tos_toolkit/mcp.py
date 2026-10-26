@@ -304,7 +304,8 @@ def _tool_lint(args: dict[str, Any], config: Config) -> tuple[str, bool]:
             f"{', '.join(paths) or 'configured targets'}"
         )
 
-    ok = errors == 0 and not (args.get("strict") and warnings)
+    # Nothing analysed can never be "ok", whatever warnings were produced.
+    ok = checked > 0 and errors == 0 and not (args.get("strict") and warnings)
     payload = {
         "ok": ok,
         "profile": active.profile,

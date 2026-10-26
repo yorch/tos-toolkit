@@ -14,7 +14,9 @@
 - No chart-only functions: AddLabel, AddChartBubble, AddCloud, AddArrow,
   AddVerticalLine, AssignPriceColor, AssignBackgroundColor.
 - No `declare upper` or `declare lower`.
-- Final statement must be a boolean `plot`.
+- Must expose exactly one `plot`; its position in the file does not matter.
+  `plot Scan;` followed by `Scan = …;` is a documented form. Secondary
+  aggregation (`AggregationPeriod`) is not supported in a scan (E407).
 - Keep cheap: no fold, no multi-TF reads, no long lookbacks.
 - Scanner evaluates for every symbol on every bar.
 - Name files `*_scan.thinkscript`.
