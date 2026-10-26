@@ -86,8 +86,8 @@ def counts(payload: dict) -> tuple[int, int]:
 
 
 def emit_outputs(payload: dict) -> None:
+    """Counts only: the caller knows where its own report file lives."""
     errors, warnings = counts(payload)
-    print("json=findings.json")
     print(f"errors={errors}")
     print(f"warnings={warnings}")
 

@@ -182,26 +182,15 @@ def _display_path(path, root) -> str:
         return str(path)
 
 
-def _stray_for(config: Config, paths: list[str]) -> list:
-    """The .ts files a lint run should report, resolved the same way as targets."""
+def _discover(config: Config, paths: list[str]) -> tuple[list, list]:
+    """Return (thinkscript files, stray .ts files).
+
+    Raises ToolError only for a *broken* request (no targets, a path that does
+    not exist). Returning zero files is not an error here: the caller decides,
+    because `lint` can legitimately answer with stray-file findings while
+    `syntax-check` cannot.
+    """
     from .cli import _walk
-
-    targets = paths or [
-        str(config.root / target)
-        for target in config.targets
-        if (config.root / target).exists()
-    ]
-    if not targets:
-        return []
-    try:
-        _files, stray = _walk(targets, config.root, strict_paths=False)
-    except SystemExit:
-        return []
-    return stray
-
-
-def _walk_targets(config: Config, paths: list[str]) -> list:
-    from .cli import THINKSSCRIPT_SUFFIX, _walk
 
     targets = paths or [
         str(config.root / target)
@@ -214,15 +203,23 @@ def _walk_targets(config: Config, paths: list[str]) -> list:
             "directories, or add [project] targets to tos.toml"
         )
     try:
-        files, _stray = _walk(targets, config.root, strict_paths=bool(paths))
+        return _walk(targets, config.root, strict_paths=bool(paths))
     except SystemExit as exc:
         # The CLI exits 2 on a bad path; inside the server that must be a tool
-        # error, never a process exit — killing the loop drops the client.
-        raise ToolError(
-            f"path not found: {', '.join(paths)}" if paths else "no valid target paths"
-        ) from exc
+        # error, never a process exit.
+        raise ToolError(f"path not found: {', '.join(paths) or 'configured targets'}") from exc
+
+
+def _walk_targets(config: Config, paths: list[str]) -> list:
+    """Files that must exist for the caller to do any work at all."""
+    files, stray = _discover(config, paths)
     if not files:
-        raise ToolError(f"no {THINKSSCRIPT_SUFFIX} files found under: {', '.join(paths) or 'configured targets'}")
+        extra = (
+            f" ({len(stray)} .ts file(s) found - did you mean .thinkscript?)" if stray else ""
+        )
+        raise ToolError(
+            f"no .thinkscript files found under: {', '.join(paths) or 'configured targets'}{extra}"
+        )
     return files
 
 
@@ -230,15 +227,11 @@ def _tool_lint(args: dict[str, Any], config: Config) -> tuple[str, bool]:
     active = _config_for(config, args)
     registry = load_registry()
     paths = list(args.get("paths") or [])
-    stray = _stray_for(active, paths)
-    try:
-        files = _walk_targets(active, paths)
-    except ToolError:
-        # A directory containing only .ts files is not an operational failure:
-        # E005 findings are the answer. Only re-raise when there is nothing to say.
-        if not stray:
-            raise
-        files = []
+    files, stray = _discover(active, paths)
+    if not files and not stray:
+        raise ToolError(
+            f"no .thinkscript files found under: {', '.join(paths) or 'configured targets'}"
+        )
 
     findings: list[dict[str, Any]] = []
     errors = warnings = 0
@@ -424,16 +417,16 @@ def handle(request: dict[str, Any], config: Config) -> dict[str, Any] | None:
 
     is_notification = "id" not in request
     params = request.get("params")
+    if is_notification:
+        # JSON-RPC: a notification never gets a response — not for a malformed
+        # params value, not for ping, not for an unknown method.
+        return None
     if params is None:
         params = {}
     if not isinstance(params, dict):
         # A malformed params value must be an error response, not an exception
         # that unwinds serve() and drops the client.
         return _error(request_id, INVALID_PARAMS, "'params' must be an object")
-    if is_notification:
-        # JSON-RPC: a notification never gets a response, including for ping or
-        # an unknown method. We have no server-initiated work to do here.
-        return None
 
     if method == "initialize":
         requested = params.get("protocolVersion")

@@ -71,6 +71,11 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     syntax.add_argument("paths", nargs="*")
     syntax.add_argument("--keep-going", action="store_true", help="report all files, don't stop")
+    syntax.add_argument(
+        "--allow-empty",
+        action="store_true",
+        help="succeed when no files were checked (default: exit 2)",
+    )
 
     new = subparsers.add_parser("new", help="scaffold a file from a template")
     new.add_argument("kind_or_path", help="kind (study/scan/strategy/column) or path")
@@ -352,8 +357,10 @@ def _cmd_syntax(args, config) -> int:
         print(f"error: path not found: {' '.join(args.paths)}", file=sys.stderr)
         return 2
     if not files:
-        print("No .thinkscript files found.")
-        return 0
+        print("No .thinkscript files found.", file=sys.stderr)
+        # Same rule as lint: a checker that verified nothing must not report
+        # success, because "0 grammar errors" then means nothing at all.
+        return 0 if args.allow_empty else 2
 
     if not config.parser_enabled:
         print(

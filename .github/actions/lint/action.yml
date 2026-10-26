@@ -90,6 +90,7 @@ runs:
         TOS_STRICT: ${{ inputs.strict }}
         TOS_ANNOTATIONS: ${{ inputs.annotations }}
         ANNOTATE: ${{ github.action_path }}/annotate.py
+        REPORT_DIR: ${{ runner.temp }}
       run: |
         set -uo pipefail
 
@@ -101,18 +102,24 @@ runs:
         # GitHub runs `bash -eo pipefail` for composite steps, and `set -uo`
         # does not turn -e off. Capture the failure explicitly or the step exits
         # here and never reports annotations or outputs.
+        # Unique per invocation: two uses of this Action in one workflow must not
+        # overwrite each other's report, or the first `json` output would point at
+        # the second run's findings.
+        report="$(mktemp "${REPORT_DIR}/tos-lint-XXXXXXXX.json")"
+        echo "report=${report}" >> "${GITHUB_OUTPUT}"
+
         status=0
         # Word splitting is intended: `paths` may hold several entries.
         # shellcheck disable=SC2086
-        tos --profile "${TOS_PROFILE}" lint ${TOS_PATHS} "${args[@]}" > findings.json || status=$?
+        tos --profile "${TOS_PROFILE}" lint ${TOS_PATHS} "${args[@]}" > "${report}" || status=$?
 
         if [ "${TOS_ANNOTATIONS}" = "true" ]; then
-          python "${ANNOTATE}" findings.json || true
+          python "${ANNOTATE}" "${report}" || true
         else
-          python "${ANNOTATE}" --plain findings.json || true
+          python "${ANNOTATE}" --plain "${report}" || true
         fi
 
-        python "${ANNOTATE}" --outputs findings.json >> "${GITHUB_OUTPUT}" || true
+        python "${ANNOTATE}" --outputs "${report}" >> "${GITHUB_OUTPUT}" || true
 
         exit "$status"
 
@@ -121,6 +128,6 @@ runs:
       uses: actions/upload-artifact@v5
       with:
         name: ${{ inputs.artifact-name }}
-        path: findings.json
+        path: ${{ steps.lint.outputs.report }}
         if-no-files-found: ignore
         retention-days: 7

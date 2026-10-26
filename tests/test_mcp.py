@@ -241,3 +241,83 @@ def test_non_string_tool_name_is_invalid_params(config):
         call("tools/call", {"name": [], "arguments": {}}), config
     )
     assert response["error"]["code"] == mcp.INVALID_PARAMS
+
+
+def test_missing_path_is_not_swallowed_by_stray_findings(config, tmp_path):
+    """A missing path must stay an error even when a .ts file is also present."""
+    (tmp_path / "stray.ts").write_text("plot x = close;\n")
+    response = mcp.handle(
+        call(
+            "tools/call",
+            {"name": "tos_lint", "arguments": {"paths": [str(tmp_path), "nope.thinkscript"]}},
+        ),
+        config,
+    )
+    assert response["result"]["isError"] is True
+    assert "path not found" in response["result"]["content"][0]["text"]
+
+
+def test_stray_only_directory_is_a_successful_finding(config, tmp_path):
+    (tmp_path / "stray.ts").write_text("plot x = close;\n")
+    response = mcp.handle(
+        call("tools/call", {"name": "tos_lint", "arguments": {"paths": [str(tmp_path)]}}),
+        config,
+    )
+    payload = json.loads(response["result"]["content"][0]["text"])
+    assert payload["ok"] is False
+    assert [f["code"] for f in payload["findings"]] == ["E005"]
+
+
+def test_malformed_params_on_a_notification_gets_no_response(config):
+    response = mcp.handle(
+        {"jsonrpc": "2.0", "method": "ping", "params": []}, config
+    )
+    assert response is None
+
+
+def test_nested_kind_directory_infers_kind(tmp_path):
+    from conftest import make_ctx
+    from tos_toolkit.checks import run_all
+    from tos_toolkit.config import Config
+
+    for depth in ("src/scans/x.thinkscript",):
+        path = tmp_path / depth
+        path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text('AddLabel(yes, "x", Color.GRAY);\nplot Scan = close > 1;\n')
+    cfg = Config(root=tmp_path)
+    cfg.header_mode = "off"
+    cfg.kind_dirs = {"scan": "src/scans"}
+    from tos_toolkit.checks import Context
+    from tos_toolkit.registry import load as load_registry
+
+    ctx = Context(
+        path=path, root=tmp_path, text=path.read_text(), config=cfg, registry=load_registry()
+    )
+    assert "E401" in {f.code for f in run_all(ctx)}
+
+
+def test_split_declare_still_reports_e405(tmp_path):
+    from conftest import make_ctx
+    from tos_toolkit.checks import run_all
+
+    ctx = make_ctx(
+        tmp_path,
+        "declare\nlower;\nplot Scan = close > 1;\n",
+        profile="loose",
+        subdir="scans",
+        filename="x_scan.thinkscript",
+    )
+    assert "E405" in {f.code for f in run_all(ctx)}
+
+
+def test_scan_with_no_statements_reports_e403(tmp_path):
+    from conftest import make_ctx
+    from tos_toolkit.checks import run_all
+
+    ctx = make_ctx(
+        tmp_path,
+        "# @kind: scan\n\n",
+        subdir="scans",
+        filename="empty_scan.thinkscript",
+    )
+    assert "E403" in {f.code for f in run_all(ctx)}

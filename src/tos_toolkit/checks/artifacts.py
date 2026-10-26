@@ -6,6 +6,8 @@ Always on, regardless of profile.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from ..diagnostics import Finding
 from ..lexer import Kind
 from .language import CHART_ONLY
@@ -17,13 +19,17 @@ CHART_ONLY_LOWER = {name.lower() for name in CHART_ONLY}
 
 
 def _kind_from_directory(ctx) -> str:
-    """The artifact kind implied by the directory a file lives in."""
-    directory = ctx.config.kind_dirs  # kind -> directory
+    """The artifact kind implied by the directory a file lives in.
+
+    Compares whole path components, so a nested configuration such as
+    ``kind_dirs = { scan = "src/scans" }`` matches as well as the flat default.
+    """
     parts = ctx.rel.parts
     if not parts:
         return ""
-    for kind, name in directory.items():
-        if parts[0] == name:
+    for kind, name in ctx.config.kind_dirs.items():
+        wanted = Path(name).parts
+        if wanted and tuple(parts[: len(wanted)]) == wanted:
             return kind
     return ""
 
@@ -62,13 +68,18 @@ def _calls(ctx) -> list[tuple[str, int]]:
 
 
 def _declares_panel(ctx) -> list[int]:
-    lines = []
-    for index, line in enumerate(ctx.masked_lines(), start=1):
-        stripped = line.strip().lower()
-        if stripped.startswith("declare ") and (
-            "upper" in stripped or "lower" in stripped
-        ):
-            lines.append(index)
+    """Lines of `declare upper/lower`, read from tokens.
+
+    Scanning physical lines let `declare\nlower;` slip past, so a scan could
+    bypass E405 with a line break.
+    """
+    lines: list[int] = []
+    for statement in ctx.statements:
+        if statement.keyword != "declare":
+            continue
+        words = {t.lower for t in statement.tokens if t.kind is Kind.IDENT}
+        if words & {"upper", "lower"}:
+            lines.append(statement.start_line)
     return lines
 
 
@@ -91,6 +102,13 @@ def _scan(ctx) -> list[Finding]:
 
     terminated = [s for s in ctx.statements if s.tokens]
     if not terminated:
+        out.append(
+            ctx.finding(
+                "E403",
+                ctx.first_code_line or 1,
+                "a scan must end with a boolean 'plot'; this scan has no statements",
+            )
+        )
         return [item for item in out if item is not None]
     last = terminated[-1]
     if last.keyword != "plot":
