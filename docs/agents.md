@@ -2,6 +2,12 @@
 
 Three ways to put this in front of an assistant or a pipeline, cheapest first.
 
+All of them assume the toolkit is installed:
+
+```console
+$ pipx install tos-toolkit     # or: uv tool install tos-toolkit
+```
+
 ---
 
 ## 1. `AGENTS.md` — conventions an assistant reads
@@ -83,11 +89,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: yorch/tos-toolkit/.github/actions/lint@v0.2.0   # Action ships from 0.2.0
+      - uses: yorch/tos-toolkit/.github/actions/lint@v0.2.1   # Action ships from 0.2.0
         with:
           paths: studies scans strategies columns
           profile: strict
-          version: "0.2.0"
+          version: "0.2.1"
           strict: "true"
 ```
 
@@ -112,7 +118,7 @@ becomes theatre.
 Nothing forces you to use the Action:
 
 ```yaml
-- run: pip install "tos-toolkit==0.2.0"
+- run: pip install "tos-toolkit==0.2.1"
 - run: tos lint --strict --json > findings.json
 ```
 

@@ -121,8 +121,8 @@ Missing paths exit 2, so a typo in the hook cannot silently pass.
 | Approach | Command | When |
 | --- | --- | --- |
 | Editable local checkout | `pip install -e /path/to/tos-toolkit` | developing the toolkit and a consumer together (clone the toolkit first) |
-| PyPI | `pip install tos-toolkit==0.2.0` | pinned, reproducible — preferred |
-| Git | `pip install git+https://github.com/yorch/tos-toolkit@v0.2.0` | testing an unreleased commit |
+| PyPI | `pip install tos-toolkit==0.2.1` | pinned, reproducible — preferred |
+| Git | `pip install git+https://github.com/yorch/tos-toolkit@v0.2.1` | testing an unreleased commit |
 
 Prefer a version pin over a floating branch: `tos lint` output is gate input, and
 a rule change can flip a green build to red.

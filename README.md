@@ -21,11 +21,23 @@ thinkorswim anywhere in sight.
 ## Install
 
 ```console
-$ pip install -e .        # local
-$ pip install "tos-toolkit[parser]"                 # marks the grammar-check requirement
+$ pipx install tos-toolkit        # isolated CLI install (recommended)
+$ uv tool install tos-toolkit     # or with uv
+$ pip install tos-toolkit         # into the current environment
 ```
 
-Requires Python 3.11+. The core has **zero** Python dependencies.
+[On PyPI](https://pypi.org/project/tos-toolkit/). Requires Python 3.11+; the core
+has **zero** Python dependencies.
+
+The optional grammar check needs a local thinkorswim install and a JDK. The
+`[parser]` extra adds no dependencies — it exists so the requirement is visible:
+
+```console
+$ pipx install "tos-toolkit[parser]"
+```
+
+Pin it in CI — `tos-toolkit==0.2.1` — because a new lint rule can turn a previously
+green build red.
 
 `tos syntax-check` additionally requires a locally installed thinkorswim and a
 JDK. Nothing from thinkorswim is bundled or redistributed — see

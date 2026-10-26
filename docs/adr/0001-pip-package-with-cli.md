@@ -28,8 +28,9 @@ nothing.
 Ship `tos-toolkit` as a pip-installable package whose only entry point is the
 `tos` console script.
 
-Consumers do `pip install -e .` (or from git) and call
-`tos` from a `justfile`.
+Consumers install from PyPI (`pipx install tos-toolkit`, `uv tool install
+tos-toolkit`, or `pip install tos-toolkit`) or from git for an unreleased commit,
+and call `tos` from a `justfile`.
 
 ## Consequences
 
