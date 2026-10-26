@@ -122,9 +122,20 @@ def _merge_rules(target: dict[str, Level], table: dict) -> None:
             ) from None
 
 
-def load(config_path: Path | None = None, profile: str | None = None) -> Config:
-    """Resolve configuration. Falls back to the `strict` profile with no file."""
-    path = config_path or discover()
+def load(
+    config_path: Path | None = None,
+    profile: str | None = None,
+    *,
+    discover_from_cwd: bool = True,
+) -> Config:
+    """Resolve configuration. Falls back to the `strict` profile with no file.
+
+    ``discover_from_cwd=False`` resolves the built-in profile only. It exists for
+    callers that already hold a resolved config and want to swap the profile —
+    re-discovering there would silently pick up whatever ``tos.toml`` happens to be
+    above the working directory.
+    """
+    path = config_path or (discover() if discover_from_cwd else None)
     data: dict = {}
     root = Path.cwd()
 

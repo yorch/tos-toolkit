@@ -141,3 +141,21 @@ def test_version_matches_pyproject():
     if tos_toolkit.__version__ == "0.0.0+source":
         pytest.skip("running from an uninstalled source checkout")
     assert tos_toolkit.__version__ == declared
+
+
+def test_profile_override_does_not_discover_config(tmp_path, monkeypatch):
+    """Swapping a profile must not silently pick up a tos.toml from the cwd.
+
+    The repo now carries its own tos.toml, so a re-discovering override would make
+    every MCP lint run inherit the repository's header requirements.
+    """
+    (tmp_path / "tos.toml").write_text(
+        '[profile]\nname = "strict"\n\n[header]\nmode = "required"\n', encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+
+    base = Config(root=tmp_path)  # resolved with no file
+    overridden = load(profile="loose", discover_from_cwd=False)
+    assert overridden.header_mode == "off"
+    assert overridden.config_path is None
+    assert base.config_path is None

@@ -170,7 +170,11 @@ def _config_for(base: Config, args: dict[str, Any], profile: str | None = None) 
     if not profile_name:
         return base
     try:
-        return load_config(config_path=base.config_path, profile=profile_name)
+        return load_config(
+            config_path=base.config_path,
+            profile=profile_name,
+            discover_from_cwd=False,
+        )
     except ConfigError as exc:
         raise ToolError(str(exc)) from exc
 

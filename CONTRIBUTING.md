@@ -9,7 +9,19 @@ $ git clone https://github.com/yorch/tos-toolkit
 $ cd tos-toolkit
 $ python -m venv .venv && . .venv/bin/activate
 $ pip install -e ".[dev]"
-$ python -m pytest -q
+$ just check          # lint + compile + tests + docs build
+```
+
+The repository lints **itself**: it carries a `tos.toml` whose targets are the
+templates users copy, so `tos lint` works from the root with no arguments, exactly
+as it does in a consumer repo. That is deliberate — the tool is held to its own
+rules.
+
+```console
+$ tos lint            # the bundled templates
+$ tos status          # validation debt (templates are excluded: they are starters)
+$ tos docs gotchas    # the reference, from the same command a user would run
+$ just selfcheck      # templates clean + a known collision rejected
 ```
 
 The package has **no runtime dependencies**. Please keep it that way — a linter

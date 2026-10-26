@@ -8,6 +8,21 @@ rule can turn a previously green build red. Pin a version in CI.
 
 ## [Unreleased]
 
+### Added
+
+- The repository now lints itself: `tos.toml` at the root points `targets` at the
+  bundled templates, so `tos lint` works with no arguments here exactly as it does
+  in a consumer repo. `just lint` and `just check` use it.
+- `config.load(..., discover_from_cwd=False)` for callers that already hold a
+  resolved config; the MCP profile override uses it.
+
+### Fixed
+
+- A profile override inside the MCP server re-discovered `tos.toml` from the
+  working directory. Harmless until this repo gained its own `tos.toml`, at which
+  point `tos_lint` with `profile: "loose"` inherited the repository's header
+  requirements. Two MCP tests caught it.
+
 ### Fixed
 
 Documentation corrected against the code, found by an adversarial audit:

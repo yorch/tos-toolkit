@@ -1,0 +1,29 @@
+# The toolkit linting itself.
+#
+# Its only ThinkScript sources are the templates users copy, so those are the
+# targets. Keeping this file means `tos lint` works from the repo root with no
+# arguments — the tool is held to its own rules like any consumer would be.
+
+[profile]
+name = "strict"
+
+[project]
+targets = ["src/tos_toolkit/scaffold/templates"]
+templates_dir = "src/tos_toolkit/scaffold/templates"
+
+[header]
+mode = "required"
+
+[parser]
+enabled = true
+tos_path = "/Applications/thinkorswim"
+
+[review]
+harness = "codex"
+model = "gpt-6.1-sol"
+effort = "high"
+
+[checks]
+# Templates are starters, not shipped scripts: the rec-depth heuristic is noise
+# on them, and unknown_functions would flag anything newer than the registry.
+W090 = "warn"

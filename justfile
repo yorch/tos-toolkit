@@ -13,9 +13,18 @@ install:
 test:
     @python3 -m pytest -q
 
+# Lint the toolkit's own ThinkScript templates (dogfooding: `tos` on itself)
+lint: install
+    @tos lint
+
 # Lint the toolkit's own Python
 lint-py:
     @python3 -m compileall -q src/tos_toolkit && echo "python compiles"
+
+# Everything CI runs
+check: lint lint-py test docs-build
+    @echo ""
+    @echo "all checks passed"
 
 # Self-check: the tool must accept its own templates and reject a known collision
 selfcheck: install
