@@ -93,19 +93,40 @@ def _declares_panel(ctx) -> list[int]:
 
 
 def _secondary_aggregation_lines(ctx) -> list[int]:
-    """Lines where a call passes `period = …`, i.e. requests another timeframe."""
-    lines: list[int] = []
+    """Lines that request another timeframe from a data function.
+
+    Two forms matter: the named `close(period = …)` argument, and the positional
+    `close("SPY", AggregationPeriod.WEEK)`. Anything inside a `script { … }` block
+    is skipped — a local helper taking a `period` parameter is not a scan-level
+    read — and `GetAggregationPeriod()` is a different identifier, so it does not
+    match.
+    """
+    lines: set[int] = set()
+    brace_depth = 0
     for statement in ctx.statements:
         tokens = statement.tokens
-        for index, token in enumerate(tokens[:-1]):
-            if token.kind is not Kind.IDENT or token.lower != "period":
+        for index, token in enumerate(tokens):
+            if token.kind is Kind.LBRACE:
+                brace_depth += 1
                 continue
-            # Must be inside a call, not `input period = 20;` at statement level.
-            if token.depth < 1:
+            if token.kind is Kind.RBRACE:
+                brace_depth = max(0, brace_depth - 1)
                 continue
-            if tokens[index + 1].kind is Kind.OP and tokens[index + 1].value == "=":
-                lines.append(token.line)
-    return sorted(set(lines))
+            if brace_depth > 0 or token.kind is not Kind.IDENT:
+                continue
+
+            # Positional or named reference to another aggregation.
+            if token.lower == "aggregationperiod":
+                lines.add(token.line)
+                continue
+
+            if token.lower == "period" and index + 1 < len(tokens):
+                following = tokens[index + 1]
+                if following.kind is Kind.OP and following.value == "=":
+                    # Only inside a call; `input period = 20;` is statement level.
+                    if token.depth >= 1:
+                        lines.add(token.line)
+    return sorted(lines)
 
 
 def _plot_names(ctx) -> dict[str, int]:

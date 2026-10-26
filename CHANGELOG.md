@@ -58,6 +58,17 @@ rule can turn a previously green build red. Pin a version in CI.
 - `E403` requires that a scan exposes a `plot`, not that the plot is the final
   statement: `plot Scan; Scan = …;` is a documented form.
 - MCP reports `ok: true` only when at least one file was actually analysed.
+- `E407` also catches a positional aggregation argument
+  (`close("SPY", AggregationPeriod.WEEK)`) and no longer misfires on a `period`
+  parameter inside a `script` block or on an input named `period`.
+- `E073` exempts any previously declared name, so the documented `def x;` +
+  `x = …;` form is not reported as a bare assignment.
+
+### Known limitations
+
+- `E070`/`E071` do not analyse inside `script { … }` blocks, which have their own
+  namespace. Documented in `docs/rules.md`.
+- `AddArrow` is listed nowhere as valid: its existence is unverified.
 
 ## [0.1.0]
 

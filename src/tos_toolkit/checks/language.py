@@ -294,13 +294,16 @@ def _unknown_functions(ctx) -> list[Finding]:
 def _reserved_assignment(ctx) -> list[Finding]:
     # `plot Scan;` then `Scan = …;` is documented ThinkScript, not a bare
     # assignment, so a name declared as a plot is exempt.
-    declared_plots: set[str] = set()
+    # `def x;` / `plot Scan;` followed later by `x = …;` is documented
+    # ThinkScript: a declaration and a separate assignment, not a bare
+    # assignment. Any previously declared name is exempt.
+    declared_names: set[str] = set()
     for statement in ctx.statements:
-        if statement.keyword != "plot":
+        if statement.keyword not in {"def", "rec", "plot", "input"}:
             continue
         for token in statement.tokens[1:]:
             if token.kind is Kind.IDENT:
-                declared_plots.add(token.lower)
+                declared_names.add(token.lower)
                 break
     out = []
     for statement in ctx.statements:
@@ -313,7 +316,7 @@ def _reserved_assignment(ctx) -> list[Finding]:
             and tokens[1].kind is Kind.OP
             and tokens[1].value == "="
         ):
-            if tokens[0].lower in declared_plots:
+            if tokens[0].lower in declared_names:
                 continue
             if not any(t.kind is Kind.IDENT and t.lower in {"if"} for t in tokens):
                 out.append(

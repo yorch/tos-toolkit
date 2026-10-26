@@ -65,6 +65,12 @@ one — `pdHigh` becomes `priorDayHigh`.
 `def length`); `E071` owns the cross-namespace `def`↔`plot` pair, so one bug
 produces one finding.
 
+**Known limitation:** `E070`/`E071` inspect top-level statements only. A collision
+entirely inside a `script { … }` block is not reported, because each script has its
+own namespace and scoped analysis is not implemented. Collisions between a script's
+locals and the outer file *are* meaningful and will be missed — keep `script`
+blocks small, or check them by paste-test.
+
 ### E073 and E031 are warnings, deliberately
 
 Two rules describe platform behaviour we have not confirmed in the editor:

@@ -11,8 +11,9 @@
 ## Scans (scans/)
 
 - Filter for the ToS Scanner. Exposes a boolean `plot` (position does not matter).
-- No chart-only functions: AddLabel, AddChartBubble, AddCloud, AddArrow,
-  AddVerticalLine, AssignPriceColor, AssignBackgroundColor.
+- No chart-only functions: AddLabel, AddChartBubble, AddCloud, AddVerticalLine,
+  AssignPriceColor, AssignBackgroundColor. (`AddArrow` is UNVERIFIED — no exact
+  signature confirmed here.)
 - No `declare upper` or `declare lower`.
 - Must expose exactly one `plot`; its position in the file does not matter.
   `plot Scan;` followed by `Scan = …;` is a documented form. Secondary

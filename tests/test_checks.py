@@ -638,3 +638,35 @@ def test_split_plot_assignment_constant_warns(tmp_path):
     text = SCAN.replace("plot Scan = close > avg;", "plot Scan;\nScan = 2;")
     findings = _findings(tmp_path, text, subdir="scans", filename="sample_scan.thinkscript")
     assert "W402" in codes(findings)
+
+
+def test_positional_aggregation_argument_is_flagged(tmp_path):
+    text = SCAN.replace(
+        "plot Scan = close > avg;",
+        'plot Scan = close > close("SPY", AggregationPeriod.WEEK);',
+    )
+    findings = _findings(tmp_path, text, subdir="scans", filename="sample_scan.thinkscript")
+    assert "E407" in codes(findings)
+
+
+def test_script_block_period_parameter_is_not_a_secondary_read(tmp_path):
+    text = SCAN.replace(
+        "plot Scan = close > avg;",
+        "script probe { input period = 14; plot out = Average(close, period); }\n"
+        "plot Scan = probe() > 0;",
+    )
+    findings = _findings(tmp_path, text, subdir="scans", filename="sample_scan.thinkscript")
+    assert "E407" not in codes(findings)
+
+
+def test_split_def_assignment_is_not_a_bare_assignment(tmp_path):
+    """`def x;` then `x = …;` is documented."""
+    text = SCAN.replace("plot Scan = close > avg;", "def x;\nx = close;\nplot Scan = x > avg;")
+    findings = _findings(tmp_path, text, subdir="scans", filename="sample_scan.thinkscript")
+    assert "E073" not in codes(findings)
+
+
+def test_undeclared_assignment_still_flagged(tmp_path):
+    text = SCAN.replace("plot Scan = close > avg;", "y = close;\nplot Scan = y > avg;")
+    findings = _findings(tmp_path, text, subdir="scans", filename="sample_scan.thinkscript")
+    assert "E073" in codes(findings)
