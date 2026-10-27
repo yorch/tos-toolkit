@@ -72,6 +72,7 @@ def check(ctx) -> list[Finding]:
         _case_collisions,
         _recursion,
         _unknown_functions,
+        _unknown_identifiers,
         _reserved_assignment,
         _declaration_placement,
         _repaint_honesty,
@@ -286,6 +287,98 @@ def _unknown_functions(ctx) -> list[Finding]:
                     f"unknown function '{token.value}'",
                     hint="Not in the registry. Verify in the platform before shipping.",
                     setting="unknown_functions",
+                )
+            )
+    return [item for item in out if item is not None]
+
+
+# Bare series and constants that are legal without declaration.
+_PRICE_SOURCES = {"close", "open", "high", "low", "volume", "hl2", "hlc3", "ohlc4"}
+
+# `Double.NaN` and friends: the namespace root is not a declared identifier.
+_EXTRA_NAMESPACES = {"double"}
+
+
+def _unknown_identifiers(ctx) -> list[Finding]:
+    """An identifier that is used but never declared anywhere in the file.
+
+    This is the failure the tool was blind to: it catches undefined *calls* (E072)
+    but not a bare name, so four files that referenced an undeclared `isNewDay`
+    sailed through lint with zero findings and would have been rejected on paste.
+    """
+    registry = ctx.registry
+    known = set(ctx.declared_identifiers()) | ctx.script_names()
+    known |= _RESERVED | _PRICE_SOURCES | _EXTRA_NAMESPACES
+    known |= {name.lower() for name in registry.namespaces()}
+
+    out: list[Finding] = []
+    reported: set[str] = set()
+
+    for statement in ctx.statements:
+        tokens = statement.tokens
+        if not tokens:
+            continue
+        # Inside a `script { … }` block everything is block-local; scoped analysis
+        # is a documented limitation, so do not guess here.
+        if any(t.kind is Kind.LBRACE for t in tokens):
+            continue
+
+        keyword = statement.keyword
+        # Locals introduced by `fold i = 0 to n with acc = 0 do …`
+        locals_here: set[str] = set()
+        for index, token in enumerate(tokens[:-1]):
+            if token.kind is Kind.IDENT and token.lower in {"fold", "with"}:
+                following = tokens[index + 1]
+                if following.kind is Kind.IDENT:
+                    locals_here.add(following.lower)
+
+        # The name slot of a declaration is not a use.
+        name_slot = None
+        if keyword in {"def", "rec", "plot", "input", "declare", "script"}:
+            for index, token in enumerate(tokens[1:], start=1):
+                if token.kind is Kind.IDENT:
+                    name_slot = index
+                    break
+
+        for index, token in enumerate(tokens):
+            if token.kind is not Kind.IDENT:
+                continue
+            key = token.lower
+            if index == name_slot or key in locals_here or key in reported:
+                continue
+            previous = tokens[index - 1] if index else None
+            following = tokens[index + 1] if index + 1 < len(tokens) else None
+
+            # `Color.GREEN`: neither the namespace nor the member is a variable.
+            if previous is not None and previous.kind is Kind.OP and previous.value == ".":
+                continue
+            if following is not None and following.kind is Kind.OP and following.value == ".":
+                continue
+            # A named argument inside a call: `close(period = AggregationPeriod.DAY)`.
+            if (
+                following is not None
+                and following.kind is Kind.OP
+                and following.value == "="
+                and token.depth >= 1
+            ):
+                continue
+            # `declare upper;` — the panel words are keywords, not variables.
+            if keyword == "declare":
+                continue
+            if key in known or registry.has_function(key):
+                continue
+
+            reported.add(key)
+            out.append(
+                ctx.finding(
+                    "E074",
+                    token.line,
+                    f"identifier '{token.value}' is used but never declared in this file",
+                    hint=(
+                        "ThinkScript rejects an unknown name on paste. Declare it with "
+                        "def/rec/input/plot, or check the spelling."
+                    ),
+                    setting="unknown_identifiers",
                 )
             )
     return [item for item in out if item is not None]

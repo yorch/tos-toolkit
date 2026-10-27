@@ -33,6 +33,7 @@ DEFAULT_LEVELS: dict[str, Level] = {
     "E071": Level.ERROR,
     "E072": Level.WARN,
     "E073": Level.WARN,
+    "E074": Level.WARN,
     "E101": Level.ERROR,
     "E102": Level.ERROR,
     "E103": Level.ERROR,

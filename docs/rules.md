@@ -10,7 +10,7 @@ Prefixes group by concern:
 | `E001`–`E006` | file and lexical hygiene | no |
 | `E031` | declaration placement | no, but only fires when `@kind` is declared |
 | `E050` | asset-class declarations | **yes** — it reads `@assets`, which only exists in a header |
-| `E070`–`E073` | identifiers | no |
+| `E070`–`E074` | identifiers | no |
 | `E101`–`E104`, `W101`–`W104` | header block | **yes** |
 | `E120`, `W080`, `W081` | artifact kind vs location, naming | **yes** |
 | `E401`–`E407`, `W401`–`W402` | artifact-specific platform restrictions | **no** — the kind comes from the configured directory when the header omits it |
@@ -50,6 +50,7 @@ file full of `//` notes fails to apply with an error that points at arithmetic.
 | `E071` | error | `def`/`rec`/`input` collides with a `plot` by case |
 | `E072` | warn | call to a function not in the registry |
 | `E073` | warn | assignment without `def`/`rec`/`plot`/`input` |
+| `E074` | warn | identifier used but never declared in the file |
 
 ### E071 — the one that actually breaks pastes
 
@@ -71,6 +72,24 @@ entirely inside a `script { … }` block is not reported, because each script ha
 own namespace and scoped analysis is not implemented. Collisions between a script's
 locals and the outer file *are* meaningful and will be missed — keep `script`
 blocks small, or check them by paste-test.
+
+### E074 — the check that was missing
+
+```thinkscript
+def firstRthBar = inRth and (isNewDay or !inRth[1]);   # E074: neither is declared
+```
+
+An undeclared name is rejected on paste, and until this rule existed **nothing
+caught it**: `E072` only validates function *calls*, so four files referencing an
+undeclared `isNewDay` passed `tos lint` with zero findings and would have failed in
+the platform.
+
+It is a **warning** because the analysis is deliberately conservative: names inside
+a `script { … }` block are treated as block-local, `Namespace.MEMBER` and named
+arguments (`close(period = …)`) are skipped, and `fold` variables are recognised.
+That leaves it quiet on legal code — zero findings across this repository's own
+scripts and templates — but a stricter treatment is possible if a false negative
+ever bites.
 
 ### E073 and E031 are warnings, deliberately
 

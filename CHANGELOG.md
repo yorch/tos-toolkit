@@ -8,6 +8,26 @@ rule can turn a previously green build red. Pin a version in CI.
 
 ## [Unreleased]
 
+## [0.2.3] — 2026-10-26
+
+### Added
+
+- **`E074` — an identifier used but never declared in the file.** This closes the
+  most dangerous gap in the linter: `E072` validates function calls only, so five
+  futures files that referenced an undeclared `isNewDay` passed with
+  `0 errors · 0 warnings` and would have been rejected the moment anyone pasted
+  them. Found by the review gate, not by the tool.
+
+  Conservative by design: `Namespace.MEMBER`, named arguments
+  (`close(period = …)`), `fold` variables, price sources and `script`-block locals
+  are all skipped. Zero findings across this repository's 13 real scripts and its
+  templates. Ships as a warning until it has more mileage.
+
+### Fixed
+
+- `E074` is a `[checks]` setting too (`unknown_identifiers`), like
+  `unknown_functions`.
+
 ## [0.2.2] — 2026-10-26
 
 ### Fixed

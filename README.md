@@ -42,7 +42,7 @@ The optional grammar check needs a local thinkorswim install and a JDK. The
 $ pipx install "tos-toolkit[parser]"
 ```
 
-Pin it in CI — `tos-toolkit==0.2.2` — because a new lint rule can turn a previously
+Pin it in CI — `tos-toolkit==0.2.3` — because a new lint rule can turn a previously
 green build red.
 
 `tos syntax-check` additionally requires a locally installed thinkorswim and a

@@ -93,11 +93,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: yorch/tos-toolkit/.github/actions/lint@v0.2.2   # Action ships from 0.2.0
+      - uses: yorch/tos-toolkit/.github/actions/lint@v0.2.3   # Action ships from 0.2.0
         with:
           paths: studies scans strategies columns
           profile: strict
-          version: "0.2.2"
+          version: "0.2.3"
           strict: "true"
 ```
 
@@ -123,7 +123,7 @@ becomes theatre.
 Nothing forces you to use the Action:
 
 ```yaml
-- run: pip install "tos-toolkit==0.2.2"
+- run: pip install "tos-toolkit==0.2.3"
 - run: tos lint --strict --json > findings.json
 ```
 

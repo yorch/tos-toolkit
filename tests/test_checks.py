@@ -670,3 +670,58 @@ def test_undeclared_assignment_still_flagged(tmp_path):
     text = SCAN.replace("plot Scan = close > avg;", "y = close;\nplot Scan = y > avg;")
     findings = _findings(tmp_path, text, subdir="scans", filename="sample_scan.thinkscript")
     assert "E073" in codes(findings)
+
+
+# --------------------------------------------------------------------------
+# E074 — undeclared identifiers (the class of bug the linter used to miss)
+
+
+def test_undeclared_identifier_is_flagged(tmp_path):
+    text = (
+        "declare upper;\n"
+        "def flag = inRth and (isNewDay or !inRth[1]);\n"
+        "plot X = flag;\n"
+    )
+    findings = _findings(tmp_path, text, profile="loose")
+    flagged = {f.message for f in findings if f.code == "E074"}
+    assert any("inRth" in m for m in flagged)
+    assert any("isNewDay" in m for m in flagged)
+
+
+def test_declared_identifiers_are_not_flagged(tmp_path):
+    text = (
+        "declare upper;\n"
+        "input length = 14;\n"
+        "def avg = Average(close, length);\n"
+        "plot Value = avg;\n"
+    )
+    findings = _findings(tmp_path, text, profile="loose")
+    assert "E074" not in codes(findings), [(f.code, f.message) for f in findings]
+
+
+def test_namespaces_named_arguments_and_fold_locals_are_not_flagged(tmp_path):
+    text = (
+        "declare upper;\n"
+        "def daily = close(period = AggregationPeriod.DAY);\n"
+        "def painted = if close > Color.GREEN then 1 else 0;\n"
+        "def summed = fold i = 0 to 3 with acc = 0 do acc + i;\n"
+        "plot Value = daily + painted + summed;\n"
+    )
+    findings = _findings(tmp_path, text, profile="loose")
+    assert "E074" not in codes(findings), [(f.code, f.message) for f in findings]
+
+
+def test_script_block_locals_are_not_flagged(tmp_path):
+    text = (
+        "declare upper;\n"
+        "script double_it { input a = 0; plot out = a * 2; }\n"
+        "plot Value = double_it(close);\n"
+    )
+    findings = _findings(tmp_path, text, profile="loose")
+    assert "E074" not in codes(findings), [(f.code, f.message) for f in findings]
+
+
+def test_price_sources_are_not_flagged(tmp_path):
+    text = "declare upper;\nplot V = hlc3;\nplot W = volume;\n"
+    findings = _findings(tmp_path, text, profile="loose")
+    assert "E074" not in codes(findings), [(f.code, f.message) for f in findings]
