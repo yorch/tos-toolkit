@@ -97,7 +97,7 @@ jobs:
             exit 1
           fi
           echo "lint correctly rejected the collision with E071"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist/
@@ -129,7 +129,7 @@ jobs:
         run: python scripts/build_site.py
       - name: Check the generated site
         run: python scripts/check_site.py
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: site
           path: site/
